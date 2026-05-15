@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { TiltLogo } from "./brand/TiltLogo";
+import { CryptBarsMark } from "./brand/CryptBarsMark";
 import { WalletMenu } from "./WalletMenu";
 
 type Crumb = { label: string; href?: string };
@@ -53,7 +53,9 @@ export function AppHeader({ crumbs = [], address, rightLinks = [] }: Props) {
                       {c.label}
                     </Link>
                   ) : (
-                    <span className="label text-[var(--fg-0)] truncate">{c.label}</span>
+                    <span className="label text-[var(--fg-0)] truncate">
+                      {c.label}
+                    </span>
                   )}
                 </div>
               );
@@ -79,11 +81,14 @@ export function AppHeader({ crumbs = [], address, rightLinks = [] }: Props) {
   );
 }
 
-/** Header wordmark — amber block slashes replace i and l. */
+/** Header wordmark — bar mark + crypt. */
 export function Wordmark() {
   return (
-    <span className="flex items-center select-none text-foreground">
-      <TiltLogo height={26} />
+    <span className="flex items-center gap-2.5 select-none">
+      <CryptBarsMark variant="amber-on-ink" size={30} />
+      <span className="wordmark text-[22px] text-foreground tracking-[-0.02em]">
+        crypt
+      </span>
     </span>
   );
 }

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 208 56" fill="none" role="img" aria-label="crypt">
+  <title>crypt — white-on-amber</title>
+  <rect width="208" height="56" fill="#ffa900"/>
+  <rect x="35.000" width="56" height="56" fill="#ffa900"/>
+  <rect x="43.960" y="9.111" width="38.080" height="14.476" fill="#f3f5f8"/>
+  <rect x="43.960" y="25.567" width="38.080" height="5.127" fill="#f3f5f8"/>
+  <rect x="43.960" y="32.675" width="38.080" height="4.222" fill="#f3f5f8"/>
+  <rect x="43.960" y="38.877" width="38.080" height="3.318" fill="#f3f5f8"/>
+  <rect x="43.960" y="44.175" width="38.080" height="2.715" fill="#f3f5f8"/>
+  <text x="95" y="28" dominant-baseline="middle" font-family="'JetBrains Mono', ui-monospace, monospace" font-size="34" font-weight="400" fill="#f3f5f8" letter-spacing="-0.68">crypt</text>
+</svg>

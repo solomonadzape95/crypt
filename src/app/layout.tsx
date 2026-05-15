@@ -13,17 +13,20 @@ const jb = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "tilt — parametric SLA escrow on Stellar",
+  title: "crypt — parametric SLA escrow on Stellar",
   description:
     "Operators lock USDC into a Trustless Work escrow. If the protected API goes dark past the threshold, the escrow auto-pays the subscriber. No lawyers. No disputes.",
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/apple-icon.svg", type: "image/svg+xml" }],
+  },
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default function RootLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html
-      lang="en"
-      className={`${jb.variable} h-full antialiased`}
-    >
+    <html lang="en" className={`${jb.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );

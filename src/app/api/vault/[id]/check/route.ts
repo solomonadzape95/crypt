@@ -37,31 +37,44 @@ export async function POST(
     return NextResponse.json({ skipped: true, reason: "vault not funded" });
   }
 
+  // ── short-circuit: breach already happened ────────────────────────────────
+  // Once consecutive_failures has hit the threshold, the API is presumed dead.
+  // No point in probing it again — every subsequent tick should be focused on
+  // landing the settlement, not piling up "ER"/"TO" rows in the incident log.
+  // Fall straight through to the settle attempt (still debounced below).
+  const alreadyBreached = vault.consecutive_failures >= vault.failure_threshold;
+
   let signal: CheckSignal = "healthy";
   let statusCode: number | null = null;
   let responseMs: number | null = null;
 
-  if (vault.kill_active) {
-    signal = "manual_kill";
-  } else {
-    const started = Date.now();
-    try {
-      const res = await fetch(vault.api_url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
-      responseMs = Date.now() - started;
-      statusCode = res.status;
-      signal = res.ok ? "healthy" : "error";
-    } catch {
-      responseMs = Date.now() - started;
-      signal = "timeout";
+  if (!alreadyBreached) {
+    if (vault.kill_active) {
+      signal = "manual_kill";
+    } else {
+      const started = Date.now();
+      try {
+        const res = await fetch(vault.api_url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+        responseMs = Date.now() - started;
+        statusCode = res.status;
+        signal = res.ok ? "healthy" : "error";
+      } catch {
+        responseMs = Date.now() - started;
+        signal = "timeout";
+      }
     }
-  }
 
-  await svc.from("checks").insert({
-    vault_id: id,
-    signal,
-    status_code: statusCode,
-    response_ms: responseMs,
-  });
+    await svc.from("checks").insert({
+      vault_id: id,
+      signal,
+      status_code: statusCode,
+      response_ms: responseMs,
+    });
+  } else {
+    // Mark this tick as a failure for the state machine's sake — but no DB
+    // row, no fetch. The breach is already on record.
+    signal = vault.kill_active ? "manual_kill" : "timeout";
+  }
 
   const isFailure = signal !== "healthy";
   // Cap at the threshold so the dashboard never reads "8 / 3" — once we've

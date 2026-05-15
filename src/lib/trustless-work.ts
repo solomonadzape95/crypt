@@ -16,7 +16,7 @@ function apiKey(): string {
 async function tw<T>(
   path: string,
   body: Record<string, unknown>,
-  method: "POST" | "GET" = "POST"
+  method: "POST" | "GET" = "POST",
 ): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
     method,
@@ -78,7 +78,7 @@ function pickXDR(r: TWXDRResponse): string {
   const x = r.unsignedTransaction ?? r.unsignedXdr ?? r.xdr;
   if (!x) {
     throw new Error(
-      `TW response missing unsignedTransaction/unsignedXdr/xdr — got keys: ${Object.keys(r).join(",")}`
+      `TW response missing unsignedTransaction/unsignedXdr/xdr — got keys: ${Object.keys(r).join(",")}`,
     );
   }
   return x;
@@ -93,7 +93,7 @@ export async function twDeploy(b: TWDeployBody): Promise<{
 }> {
   const r = await tw<TWXDRResponse>(
     "/deployer/single-release",
-    b as unknown as Record<string, unknown>
+    b as unknown as Record<string, unknown>,
   );
   return { unsignedXDR: pickXDR(r), contractId: r.contractId ?? null };
 }
@@ -101,7 +101,7 @@ export async function twDeploy(b: TWDeployBody): Promise<{
 export async function twFundXDR(
   contractId: string,
   signer: string,
-  amountUsdc: number
+  amountUsdc: number,
 ): Promise<{ unsignedXDR: string }> {
   const r = await tw<TWXDRResponse>("/escrow/single-release/fund-escrow", {
     contractId,
@@ -134,7 +134,8 @@ export async function twSendSignedXDR(signedXDR: string): Promise<{
   // it ourselves from the signed XDR when TW omits it.
   if (!hash && (r.status === "SUCCESS" || r.status === "success")) {
     try {
-      const { TransactionBuilder, Networks } = await import("@stellar/stellar-sdk");
+      const { TransactionBuilder, Networks } =
+        await import("@stellar/stellar-sdk");
       const network =
         process.env.NEXT_PUBLIC_STELLAR_NETWORK === "PUBLIC"
           ? Networks.PUBLIC
@@ -166,10 +167,11 @@ export async function twSendSignedXDR(signedXDR: string): Promise<{
  */
 export async function verifyTxOnChain(
   hash: string,
-  opts: { timeoutMs?: number } = {}
+  opts: { timeoutMs?: number } = {},
 ): Promise<{ ok: true } | { ok: false; reason: string }> {
   const horizonUrl =
-    process.env.NEXT_PUBLIC_HORIZON_URL ?? "https://horizon-testnet.stellar.org";
+    process.env.NEXT_PUBLIC_HORIZON_URL ??
+    "https://horizon-testnet.stellar.org";
   const deadline = Date.now() + (opts.timeoutMs ?? 12_000);
   let lastBody: unknown = null;
   while (Date.now() < deadline) {
@@ -177,7 +179,10 @@ export async function verifyTxOnChain(
       cache: "no-store",
     });
     if (res.ok) {
-      const body = (await res.json()) as { successful?: boolean; result_xdr?: string };
+      const body = (await res.json()) as {
+        successful?: boolean;
+        result_xdr?: string;
+      };
       lastBody = body;
       if (body.successful === true) return { ok: true };
       if (body.successful === false) {
@@ -198,13 +203,16 @@ export async function verifyTxOnChain(
 export async function twApproveMilestone(
   contractId: string,
   milestoneIndex: number,
-  approver: string
+  approver: string,
 ): Promise<{ unsignedXDR: string }> {
-  const r = await tw<TWXDRResponse>("/escrow/single-release/approve-milestone", {
-    contractId,
-    milestoneIndex: String(milestoneIndex),
-    approver,
-  });
+  const r = await tw<TWXDRResponse>(
+    "/escrow/single-release/approve-milestone",
+    {
+      contractId,
+      milestoneIndex: String(milestoneIndex),
+      approver,
+    },
+  );
   return { unsignedXDR: pickXDR(r) };
 }
 
@@ -213,7 +221,7 @@ export async function twChangeMilestoneStatus(
   milestoneIndex: number,
   newStatus: "Completed" | "Pending",
   serviceProvider: string,
-  newEvidence = "tilt heartbeat"
+  newEvidence = "crypt heartbeat",
 ): Promise<{ unsignedXDR: string }> {
   const r = await tw<TWXDRResponse>(
     "/escrow/single-release/change-milestone-status",
@@ -223,14 +231,14 @@ export async function twChangeMilestoneStatus(
       newEvidence,
       newStatus,
       serviceProvider,
-    }
+    },
   );
   return { unsignedXDR: pickXDR(r) };
 }
 
 export async function twReleaseFunds(
   contractId: string,
-  releaseSigner: string
+  releaseSigner: string,
 ): Promise<{ unsignedXDR: string }> {
   const r = await tw<TWXDRResponse>("/escrow/single-release/release-funds", {
     contractId,
@@ -242,7 +250,7 @@ export async function twReleaseFunds(
 export async function twResolveDispute(
   contractId: string,
   disputeResolver: string,
-  distributions: Array<{ address: string; amount: number }>
+  distributions: Array<{ address: string; amount: number }>,
 ): Promise<{ unsignedXDR: string }> {
   const r = await tw<TWXDRResponse>("/escrow/single-release/resolve-dispute", {
     contractId,
@@ -265,7 +273,7 @@ export async function twResolveDispute(
  */
 export async function twDisputeEscrow(
   contractId: string,
-  signer: string
+  signer: string,
 ): Promise<{ unsignedXDR: string | null; alreadyInDispute: boolean }> {
   try {
     const r = await tw<TWXDRResponse>("/escrow/single-release/dispute-escrow", {
@@ -309,7 +317,7 @@ export type TWEscrow = {
  * future use if we ever need the full escrow metadata (milestones, roles).
  */
 export async function twGetEscrowsByContractIds(
-  contractIds: string[]
+  contractIds: string[],
 ): Promise<TWEscrow[]> {
   if (contractIds.length === 0) return [];
   const q = [
@@ -322,11 +330,11 @@ export async function twGetEscrowsByContractIds(
       method: "GET",
       headers: { "x-api-key": apiKey() },
       cache: "no-store",
-    }
+    },
   );
   if (!res.ok) {
     throw new Error(
-      `TW /helper/get-escrow-by-contract-ids → ${res.status}: ${await res.text()}`
+      `TW /helper/get-escrow-by-contract-ids → ${res.status}: ${await res.text()}`,
     );
   }
   return normaliseEscrowList((await res.json()) as unknown);
@@ -350,24 +358,24 @@ export async function twGetEscrowBalance(contractId: string): Promise<number> {
       method: "GET",
       headers: { "x-api-key": apiKey() },
       cache: "no-store",
-    }
+    },
   );
   if (!res.ok) {
     throw new Error(
-      `TW /helper/get-multiple-escrow-balance → ${res.status}: ${await res.text()}`
+      `TW /helper/get-multiple-escrow-balance → ${res.status}: ${await res.text()}`,
     );
   }
   const body = (await res.json()) as unknown;
   const list = Array.isArray(body)
     ? body
-    : (body as { data?: unknown[] })?.data ?? [];
+    : ((body as { data?: unknown[] })?.data ?? []);
   for (const row of list as Array<Record<string, unknown>>) {
     if (row.address === contractId && typeof row.balance === "number") {
       return row.balance;
     }
   }
   throw new Error(
-    `TW get-multiple-escrow-balance returned no row for ${contractId}: ${JSON.stringify(body).slice(0, 300)}`
+    `TW get-multiple-escrow-balance returned no row for ${contractId}: ${JSON.stringify(body).slice(0, 300)}`,
   );
 }
 
@@ -381,7 +389,7 @@ function normaliseEscrowList(body: unknown): TWEscrow[] {
     if (typeof rec.contractId === "string") return [rec as TWEscrow];
   }
   throw new Error(
-    `TW get-escrow returned an unrecognised shape: ${JSON.stringify(body).slice(0, 200)}`
+    `TW get-escrow returned an unrecognised shape: ${JSON.stringify(body).slice(0, 200)}`,
   );
 }
 

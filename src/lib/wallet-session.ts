@@ -2,14 +2,14 @@ import { cookies } from "next/headers";
 import { SignJWT, jwtVerify } from "jose";
 import { Keypair, hash } from "@stellar/stellar-sdk";
 
-const SESSION_COOKIE = "tilt_session";
-const CHALLENGE_COOKIE = "tilt_challenge";
+const SESSION_COOKIE = "crypt_session";
+const CHALLENGE_COOKIE = "crypt_challenge";
 const SESSION_DAYS = 7;
 const CHALLENGE_MINUTES = 5;
 
 function secretBytes(): Uint8Array {
-  const s = process.env.TILT_SESSION_SECRET;
-  if (!s) throw new Error("TILT_SESSION_SECRET is not set");
+  const s = process.env.CRYPT_SESSION_SECRET;
+  if (!s) throw new Error("CRYPT_SESSION_SECRET is not set");
   return new TextEncoder().encode(s);
 }
 
@@ -21,7 +21,7 @@ export function challengeMessage(address: string, nonce: string): string {
   // IMPORTANT: must be deterministic from (address, nonce) so the bytes we
   // verify match the bytes Freighter signed. Do not add timestamps here.
   return [
-    "Tilt — sign in with your Stellar wallet.",
+    "crypt — sign in with your Stellar wallet.",
     "",
     `Address: ${address.toUpperCase()}`,
     `Nonce: ${nonce}`,
@@ -48,18 +48,22 @@ export async function issueChallenge(address: string): Promise<Challenge> {
 }
 
 export async function consumeChallenge(
-  address: string
+  address: string,
 ): Promise<{ nonce: string; message: string } | null> {
   const store = await cookies();
   const jwt = store.get(CHALLENGE_COOKIE)?.value;
   if (!jwt) return null;
   try {
     const { payload } = await jwtVerify(jwt, secretBytes());
-    if (typeof payload.addr !== "string" || typeof payload.nonce !== "string") return null;
+    if (typeof payload.addr !== "string" || typeof payload.nonce !== "string")
+      return null;
     if (payload.addr !== address.toUpperCase()) return null;
     // Single-use
     store.delete(CHALLENGE_COOKIE);
-    return { nonce: payload.nonce, message: challengeMessage(address, payload.nonce) };
+    return {
+      nonce: payload.nonce,
+      message: challengeMessage(address, payload.nonce),
+    };
   } catch {
     return null;
   }
@@ -104,7 +108,7 @@ export async function readSession(): Promise<WalletSession | null> {
 
 // Edge-compatible variant for the proxy (no `cookies()` helper there).
 export async function readSessionFromCookieString(
-  cookieValue: string | undefined
+  cookieValue: string | undefined,
 ): Promise<WalletSession | null> {
   if (!cookieValue) return null;
   try {
@@ -125,7 +129,7 @@ export async function readSessionFromCookieString(
 export function verifyStellarSignature(
   address: string,
   message: string,
-  signature: string
+  signature: string,
 ): { ok: boolean; tried: string[]; matched: string | null } {
   const kp = (() => {
     try {
@@ -150,7 +154,11 @@ export function verifyStellarSignature(
   })();
 
   if (!sigBytes) {
-    return { ok: false, tried: [`bad-sig-decode(chars=${signature.length})`], matched: null };
+    return {
+      ok: false,
+      tried: [`bad-sig-decode(chars=${signature.length})`],
+      matched: null,
+    };
   }
 
   const variants: Array<{ name: string; bytes: Buffer }> = [
@@ -162,7 +170,8 @@ export function verifyStellarSignature(
   const tried: string[] = [];
   for (const v of variants) {
     try {
-      if (kp.verify(v.bytes, sigBytes)) return { ok: true, tried, matched: v.name };
+      if (kp.verify(v.bytes, sigBytes))
+        return { ok: true, tried, matched: v.name };
       tried.push(v.name);
     } catch (e) {
       tried.push(`${v.name}-throw`);

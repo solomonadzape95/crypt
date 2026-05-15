@@ -8,14 +8,14 @@
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 
 const checks = [
-  { path: "/",            must: "tilt",                expect: 200 },
-  { path: "/login",       must: "sign in",             expect: 200 },
-  { path: "/trust",       must: "how this stays safe", expect: 200 },
+  { path: "/", must: "crypt", expect: 200 },
+  { path: "/login", must: "sign in", expect: 200 },
+  { path: "/trust", must: "how this stays safe", expect: 200 },
   { path: "/marketplace", expect: 307 },
-  { path: "/vaults",      expect: 307 },
-  { path: "/provider",    expect: 307 },
+  { path: "/vaults", expect: 307 },
+  { path: "/provider", expect: 307 },
   { path: "/listing/00000000-0000-0000-0000-000000000000", expect: 307 },
-  { path: "/vault/00000000-0000-0000-0000-000000000000",   expect: 307 },
+  { path: "/vault/00000000-0000-0000-0000-000000000000", expect: 307 },
 ];
 
 let failed = 0;
@@ -24,7 +24,9 @@ for (const c of checks) {
   try {
     res = await fetch(`${BASE}${c.path}`, { redirect: "manual" });
   } catch (e) {
-    console.error(`FAIL ${c.path} → network error: ${e instanceof Error ? e.message : e}`);
+    console.error(
+      `FAIL ${c.path} → network error: ${e instanceof Error ? e.message : e}`,
+    );
     failed++;
     continue;
   }
@@ -38,7 +40,9 @@ for (const c of checks) {
   }
   const tag = statusOk && bodyOk ? "PASS" : "FAIL";
   const expected = c.must ? ` · "${c.must}"` : "";
-  console.log(`${tag} ${c.path} → ${res.status} (expected ${c.expect})${expected}${bodyHint}`);
+  console.log(
+    `${tag} ${c.path} → ${res.status} (expected ${c.expect})${expected}${bodyHint}`,
+  );
   if (!statusOk || !bodyOk) failed++;
 }
 

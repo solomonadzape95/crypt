@@ -358,11 +358,11 @@ function PayoutCard({
         <div className="flex items-end justify-between">
           <span
             className="numeric font-medium tracking-tight"
-            style={{ fontSize: "2.5rem", color: "var(--signal-fail)", lineHeight: 1 }}
+            style={{ fontSize: "2.5rem", color: "var(--signal-ok)", lineHeight: 1 }}
           >
             {total.toFixed(2)}
           </span>
-          <span className="label text-[var(--signal-fail)]">USDC sent</span>
+          <span className="label text-[var(--signal-ok)]">USDC sent</span>
         </div>
         <div className="border-t border-[var(--rule-0)] pt-3 flex flex-col gap-2">
           <span className="label">paid to</span>

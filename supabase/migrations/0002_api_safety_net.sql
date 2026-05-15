@@ -1,8 +1,8 @@
--- API Safety Net — pivot from Tilt.
--- Drops the Tilt session/pool/heartbeat domain and creates vaults + oracle checks.
+-- API Safety Net — pivot from tilt.
+-- Drops the tilt session/pool/heartbeat domain and creates vaults + oracle checks.
 
 -- ──────────────────────────────────────────────────────────────────────────
--- drop Tilt tables / types (safe to re-run)
+-- drop tilt tables / types (safe to re-run)
 -- ──────────────────────────────────────────────────────────────────────────
 
 drop table if exists public.flows      cascade;
@@ -26,7 +26,7 @@ drop table if exists public.vaults cascade;
 drop type  if exists vault_status  cascade;
 drop type  if exists check_signal  cascade;
 
-create extension if not exists "pgcrypto";
+create extension if not exists "pgtilto";
 
 create type vault_status as enum (
   'funding',

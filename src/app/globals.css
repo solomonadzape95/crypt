@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /*
- * tilt — operator console design tokens.
+ * crypt — operator console design tokens.
  * Monospace throughout. JetBrains Mono is the single family — readable at
  * every size, weight-graded for body/labels/numerics and display headlines.
  * OKLCH for perceptual uniformity. One hot accent.
@@ -10,9 +10,9 @@
 :root {
   /* surfaces */
   --ink-0: oklch(0.115 0.008 250);
-  --ink-1: oklch(0.16  0.008 250);
-  --ink-2: oklch(0.21  0.008 250);
-  --ink-3: oklch(0.27  0.008 250);
+  --ink-1: oklch(0.16 0.008 250);
+  --ink-2: oklch(0.21 0.008 250);
+  --ink-3: oklch(0.27 0.008 250);
 
   /* foreground */
   --fg-0: oklch(0.97 0.005 250);
@@ -25,28 +25,31 @@
   --rule-1: oklch(0.32 0.006 250);
 
   /* hot accent — hazard amber */
-  --amber:     oklch(0.80 0.18 75);
+  --amber: oklch(0.8 0.18 75);
   --amber-dim: oklch(0.55 0.13 75);
-  --amber-bg:  oklch(0.22 0.08 75);
+  --amber-bg: oklch(0.22 0.08 75);
 
   /* semantic status */
-  --signal-ok:    oklch(0.74 0.16 145);
-  --signal-fail:  oklch(0.66 0.22 25);
-  --signal-wait:  oklch(0.78 0.18 75);
+  --signal-ok: oklch(0.74 0.16 145);
+  --signal-fail: oklch(0.66 0.22 25);
+  --signal-wait: oklch(0.78 0.18 75);
 
   /* Font stacks — JetBrains Mono via next/font, with a hard ui-monospace
    * fallback so the page never collapses to a serif if next/font flakes. */
-  --stack-body:    var(--font-jb, "JetBrains Mono"), ui-monospace, Menlo, Consolas, monospace;
-  --stack-display: var(--font-jb, "JetBrains Mono"), ui-monospace, Menlo, Consolas, monospace;
-  --stack-mono:    var(--font-jb, "JetBrains Mono"), ui-monospace, Menlo, Consolas, monospace;
+  --stack-body:
+    var(--font-jb, "JetBrains Mono"), ui-monospace, Menlo, Consolas, monospace;
+  --stack-display:
+    var(--font-jb, "JetBrains Mono"), ui-monospace, Menlo, Consolas, monospace;
+  --stack-mono:
+    var(--font-jb, "JetBrains Mono"), ui-monospace, Menlo, Consolas, monospace;
 
   /* spacing scale (4pt) */
   --space-2xs: 0.25rem;
-  --space-xs:  0.5rem;
-  --space-sm:  0.75rem;
-  --space-md:  1rem;
-  --space-lg:  1.5rem;
-  --space-xl:  2rem;
+  --space-xs: 0.5rem;
+  --space-sm: 0.75rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
   --space-2xl: 3rem;
   --space-3xl: 4rem;
   --space-4xl: 6rem;
@@ -136,7 +139,9 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;

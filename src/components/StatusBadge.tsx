@@ -7,7 +7,8 @@ const META: Record<VaultStatus, { label: string; color: string; pulse: boolean }
   funding:      { label: "waiting on deposits", color: "var(--fg-2)",        pulse: true },
   locked:       { label: "active",              color: "var(--signal-ok)",   pulse: true },
   under_threat: { label: "failing",             color: "var(--signal-wait)", pulse: true },
-  disbursed:    { label: "paid out",            color: "var(--signal-fail)", pulse: false },
+  // disbursed = the protocol fired the way it was supposed to. Green, not red.
+  disbursed:    { label: "paid out",            color: "var(--signal-ok)",   pulse: false },
   expired:      { label: "closed",              color: "var(--fg-3)",        pulse: false },
 };
 

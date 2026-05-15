@@ -165,10 +165,23 @@ function Bridge({ status }: { status: Vault["status"] }) {
           : status === "disbursed"
             ? "paid out"
             : "—";
+  const labelColor =
+    status === "disbursed"
+      ? "var(--signal-ok)"
+      : status === "under_threat"
+        ? "var(--signal-wait)"
+        : status === "locked"
+          ? "var(--signal-ok)"
+          : "var(--fg-2)";
+  const glyphColor = status === "disbursed" ? "var(--signal-ok)" : "var(--fg-2)";
   return (
     <div className="flex flex-col items-center justify-center gap-3 px-2 border-x border-[var(--rule-0)] bg-[var(--ink-2)] min-w-[10rem]">
-      <span className="label">{label}</span>
-      <span className="text-2xl text-[var(--fg-2)] numeric">⟷</span>
+      <span className="label" style={{ color: labelColor }}>
+        {label}
+      </span>
+      <span className="text-2xl numeric" style={{ color: glyphColor }}>
+        ⟷
+      </span>
     </div>
   );
 }

@@ -30,23 +30,24 @@ export default function ProfilePage() {
       setAddress(me.address);
 
       const supabase = getBrowserClient();
-      const [listingsRes, providerVaultsRes, subscriberVaultsRes] = await Promise.all([
-        supabase
-          .from("listings")
-          .select("*")
-          .eq("provider_wallet", me.address)
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("vaults")
-          .select("*")
-          .eq("provider_wallet", me.address)
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("vaults")
-          .select("*")
-          .eq("subscriber_wallet", me.address)
-          .order("created_at", { ascending: false }),
-      ]);
+      const [listingsRes, providerVaultsRes, subscriberVaultsRes] =
+        await Promise.all([
+          supabase
+            .from("listings")
+            .select("*")
+            .eq("provider_wallet", me.address)
+            .order("created_at", { ascending: false }),
+          supabase
+            .from("vaults")
+            .select("*")
+            .eq("provider_wallet", me.address)
+            .order("created_at", { ascending: false }),
+          supabase
+            .from("vaults")
+            .select("*")
+            .eq("subscriber_wallet", me.address)
+            .order("created_at", { ascending: false }),
+        ]);
 
       const baseListings = (listingsRes.data as Listing[] | null) ?? [];
       const providerVs = (providerVaultsRes.data as Vault[] | null) ?? [];
@@ -75,14 +76,20 @@ export default function ProfilePage() {
 
   const providerPayoutTarget =
     listings[0]?.provider_payout_target ??
-    providerVaults.find((v) => v.provider_payout_target)?.provider_payout_target ??
+    providerVaults.find((v) => v.provider_payout_target)
+      ?.provider_payout_target ??
     address;
   const subscriberPayoutTarget =
-    subscriberVaults.find((v) => v.subscriber_payout_target)?.subscriber_payout_target ??
-    address;
+    subscriberVaults.find((v) => v.subscriber_payout_target)
+      ?.subscriber_payout_target ?? address;
 
   const totalGuaranteeAtStake = providerVaults
-    .filter((v) => v.status === "funding" || v.status === "locked" || v.status === "under_threat")
+    .filter(
+      (v) =>
+        v.status === "funding" ||
+        v.status === "locked" ||
+        v.status === "under_threat",
+    )
     .reduce((sum, v) => sum + Number(v.guarantee_usdc), 0);
   const totalCoverage = subscriberVaults
     .filter((v) => v.status === "locked" || v.status === "under_threat")
@@ -103,7 +110,10 @@ export default function ProfilePage() {
       <section className="max-w-[88rem] mx-auto w-full px-6 md:px-12 py-12 flex flex-col gap-10">
         <div className="flex flex-col gap-3">
           <span className="label">profile</span>
-          <h1 className="display" style={{ fontSize: "clamp(1.75rem, 3vw, 2.75rem)" }}>
+          <h1
+            className="display"
+            style={{ fontSize: "clamp(1.75rem, 3vw, 2.75rem)" }}
+          >
             {loading
               ? "Loading…"
               : isProvider && isSubscriber
@@ -115,8 +125,8 @@ export default function ProfilePage() {
                     : "Welcome."}
           </h1>
           <p className="text-[13px] text-[var(--fg-1)] max-w-[58ch]">
-            Your wallet identity on tilt. Anything you have on the line — offered or
-            covered — shows up below.
+            Your wallet identity on crypt. Anything you have on the line —
+            offered or covered — shows up below.
           </p>
         </div>
 
@@ -125,8 +135,12 @@ export default function ProfilePage() {
           memberSince={memberSince}
           isProvider={isProvider}
           isSubscriber={isSubscriber}
-          providerPayoutTarget={isProvider ? providerPayoutTarget ?? null : null}
-          subscriberPayoutTarget={isSubscriber ? subscriberPayoutTarget ?? null : null}
+          providerPayoutTarget={
+            isProvider ? (providerPayoutTarget ?? null) : null
+          }
+          subscriberPayoutTarget={
+            isSubscriber ? (subscriberPayoutTarget ?? null) : null
+          }
           totalGuaranteeAtStake={totalGuaranteeAtStake}
           totalCoverage={totalCoverage}
         />
@@ -173,9 +187,7 @@ function IdentityCard({
       <div className="flex flex-col">
         <MetricRow
           label="wallet"
-          value={
-            <span className="break-all">{address ?? "—"}</span>
-          }
+          value={<span className="break-all">{address ?? "—"}</span>}
         />
         <MetricRow
           label="member since"
@@ -255,7 +267,8 @@ function ProviderSection({
       {listings.length === 0 ? (
         <Panel label="offers · 0">
           <p className="label px-4 py-6 text-[var(--fg-3)]">
-            No offers yet. Publish one — subscribers will see it in the marketplace.
+            No offers yet. Publish one — subscribers will see it in the
+            marketplace.
           </p>
         </Panel>
       ) : (
@@ -372,8 +385,10 @@ function ProviderListingRow({ listing }: { listing: ListingWithCount }) {
       href={`/provider/listings/${listing.id}`}
       className="group block border-t border-[var(--rule-0)] hover:bg-[var(--ink-2)] transition-colors"
     >
-      <div className="grid grid-cols-[1fr_minmax(8rem,_auto)_minmax(8rem,_auto)_minmax(7rem,_auto)_1.5rem]
-                      items-center gap-6 px-4 py-4">
+      <div
+        className="grid grid-cols-[1fr_minmax(8rem,_auto)_minmax(8rem,_auto)_minmax(7rem,_auto)_1.5rem]
+                      items-center gap-6 px-4 py-4"
+      >
         <div className="flex flex-col gap-1 min-w-0">
           <span className="label">
             {listing.active ? (
@@ -382,7 +397,9 @@ function ProviderListingRow({ listing }: { listing: ListingWithCount }) {
               <span style={{ color: "var(--fg-3)" }}>○ paused</span>
             )}
           </span>
-          <span className="text-[14px] text-[var(--fg-0)] truncate">{listing.title}</span>
+          <span className="text-[14px] text-[var(--fg-0)] truncate">
+            {listing.title}
+          </span>
           <span className="numeric text-[11px] text-[var(--fg-2)] truncate">
             {listing.api_url}
           </span>
@@ -411,11 +428,14 @@ function ProviderVaultRow({ vault }: { vault: Vault }) {
       href={`/vault/${vault.id}`}
       className="group block border-t border-[var(--rule-0)] hover:bg-[var(--ink-2)] transition-colors"
     >
-      <div className="grid grid-cols-[1fr_minmax(8rem,_auto)_minmax(8rem,_auto)_1.5rem]
-                      items-center gap-6 px-4 py-4">
+      <div
+        className="grid grid-cols-[1fr_minmax(8rem,_auto)_minmax(8rem,_auto)_1.5rem]
+                      items-center gap-6 px-4 py-4"
+      >
         <div className="flex flex-col gap-1 min-w-0">
           <span className="label">
-            subscriber {vault.subscriber_wallet.slice(0, 6)}…{vault.subscriber_wallet.slice(-4)}
+            subscriber {vault.subscriber_wallet.slice(0, 6)}…
+            {vault.subscriber_wallet.slice(-4)}
           </span>
           <span className="numeric text-[13px] text-[var(--fg-0)] truncate">
             {vault.api_url}
@@ -444,11 +464,14 @@ function SubscriberVaultRow({ vault }: { vault: Vault }) {
       href={`/vault/${vault.id}`}
       className="group block border-t border-[var(--rule-0)] hover:bg-[var(--ink-2)] transition-colors"
     >
-      <div className="grid grid-cols-[1fr_minmax(8rem,_auto)_minmax(8rem,_auto)_minmax(8rem,_auto)_1.5rem]
-                      items-center gap-6 px-4 py-4">
+      <div
+        className="grid grid-cols-[1fr_minmax(8rem,_auto)_minmax(8rem,_auto)_minmax(8rem,_auto)_1.5rem]
+                      items-center gap-6 px-4 py-4"
+      >
         <div className="flex flex-col gap-1 min-w-0">
           <span className="label">
-            provider {vault.provider_wallet.slice(0, 6)}…{vault.provider_wallet.slice(-4)}
+            provider {vault.provider_wallet.slice(0, 6)}…
+            {vault.provider_wallet.slice(-4)}
           </span>
           <span className="numeric text-[13px] text-[var(--fg-0)] truncate">
             {vault.api_url}

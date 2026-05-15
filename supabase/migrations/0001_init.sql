@@ -1,4 +1,4 @@
--- Tilt — v3 schema (wallet-only auth, no Supabase Auth dependency)
+-- tilt — v3 schema (wallet-only auth, no Supabase Auth dependency)
 -- Stellar testnet only for v1. Identity = signed Stellar wallet address.
 -- Service-role bypasses RLS; RLS is disabled because auth.uid() is not available.
 
@@ -18,7 +18,7 @@ drop type if exists tilt_session_status cascade;
 drop type if exists tilt_role cascade;
 drop type if exists tilt_milestone_kind cascade;
 
-create extension if not exists "pgcrypto";
+create extension if not exists "pgtilto";
 
 -- ──────────────────────────────────────────────────────────────────────────
 -- enums
