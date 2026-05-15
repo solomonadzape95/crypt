@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 160" fill="none" role="img" aria-label="tilt">
+  <title>tilt</title>
+  <rect width="640" height="160" fill="#1a1c22" />
+  <rect x="0" y="0" width="88" height="1" fill="#e8b84a" />
+  <rect x="0" y="159" width="640" height="1" fill="#3a3f4a" />
+
+  <text
+    x="40"
+    y="102"
+    font-family="'Azeret Mono', 'JetBrains Mono', ui-monospace, monospace"
+    font-size="72"
+    font-weight="400"
+    fill="#f5f6f7"
+    letter-spacing="-2.2"
+  >tilt</text>
+
+  <!-- i → small backward slash -->
+  <line
+    x1="308"
+    y1="72"
+    x2="328"
+    y2="112"
+    stroke="#f5f6f7"
+    stroke-width="2"
+    stroke-linecap="square"
+  />
+  <line
+    x1="330"
+    y1="52"
+    x2="378"
+    y2="118"
+    stroke="#f5f6f7"
+    stroke-width="3"
+    stroke-linecap="square"
+  />
+  <circle cx="392" cy="108" r="7" fill="#e8b84a" />
+</svg>
