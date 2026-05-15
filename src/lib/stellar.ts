@@ -95,9 +95,56 @@ export function signWithResolver(xdr: string): string {
 
 /**
  * Submit a signed XDR to Horizon and return the resulting hash.
+ *
+ * On `tx_failed`, Horizon stuffs the actual cause into
+ * `response.data.extras.result_codes` — the SDK by default re-throws an
+ * Axios error that hides this. We extract the codes and rethrow a
+ * normal Error whose `.message` carries the real diagnosis (tx code +
+ * per-op codes), so logs and `vault.settle_error` are actually useful.
  */
 export async function submitSigned(xdr: string): Promise<string> {
   const tx = TransactionBuilder.fromXDR(xdr, STELLAR_NETWORK);
-  const result = await horizon.submitTransaction(tx);
-  return result.hash;
+  try {
+    const result = await horizon.submitTransaction(tx);
+    return result.hash;
+  } catch (e) {
+    const codes = extractHorizonCodes(e);
+    if (codes) {
+      const err = new Error(
+        `Horizon /transactions → ${codes.status} ${codes.title}: tx=${codes.tx} ops=[${codes.ops.join(",")}]`
+      );
+      (err as Error & { horizon?: typeof codes }).horizon = codes;
+      throw err;
+    }
+    throw e;
+  }
+}
+
+/**
+ * Pluck `extras.result_codes` + the headline title out of an Axios error
+ * returned by Horizon. Returns null if it doesn't look like a Horizon
+ * tx_failed response.
+ */
+function extractHorizonCodes(e: unknown): {
+  status: number;
+  title: string;
+  tx: string;
+  ops: string[];
+} | null {
+  if (!e || typeof e !== "object") return null;
+  const resp = (e as { response?: { status?: number; data?: unknown } }).response;
+  if (!resp?.data || typeof resp.data !== "object") return null;
+  const data = resp.data as {
+    title?: string;
+    status?: number;
+    extras?: { result_codes?: { transaction?: string; operations?: string[] } };
+  };
+  const rc = data.extras?.result_codes;
+  if (!rc) return null;
+  return {
+    status: resp.status ?? data.status ?? 0,
+    title: data.title ?? "Transaction Failed",
+    tx: rc.transaction ?? "?",
+    ops: Array.isArray(rc.operations) ? rc.operations : [],
+  };
 }

@@ -112,15 +112,39 @@ export async function POST(
     });
   }
 
-  // Threshold reached — debounce: if we attempted settlement within the last
-  // 30s, skip this tick and let the in-flight attempt finish (or surface as
-  // settle_error if it failed).
-  const lastAttempt = vault.triggered_at ? new Date(vault.triggered_at).getTime() : 0;
-  if (Date.now() - lastAttempt < 30_000) {
-    await svc
-      .from("vaults")
-      .update({ consecutive_failures: nextFailures })
-      .eq("id", id);
+  // ── atomic settle claim ────────────────────────────────────────────────
+  // Concurrency: the vault page polls every oraclePeriodSec and there can be
+  // multiple browsers (provider + subscriber) doing it at once. settleVault
+  // takes 5–30s of round-trips; if a second tick fires while the first is
+  // mid-settle, both ticks would otherwise both pass a read-then-check
+  // debounce and both call resolve-dispute — the second one drains an
+  // already-empty escrow and the next-day support thread is born.
+  //
+  // Replace the read-then-write with a CONDITIONAL UPDATE that Postgres
+  // serializes for us: only succeed if no one else has claimed within the
+  // 60s window AND the vault is still in a settle-able state. If the update
+  // touches zero rows, this tick lost the race; back off cleanly.
+  const claimedAt = new Date();
+  const debounceCutoff = new Date(claimedAt.getTime() - 60_000).toISOString();
+  const { data: claimed, error: claimErr } = await svc
+    .from("vaults")
+    .update({
+      triggered_at: claimedAt.toISOString(),
+      settle_error: null,
+      consecutive_failures: nextFailures,
+    })
+    .eq("id", id)
+    .in("status", ["locked", "under_threat"])
+    .or(`triggered_at.is.null,triggered_at.lt.${debounceCutoff}`)
+    .select("id");
+  if (claimErr) {
+    return NextResponse.json({ error: claimErr.message }, { status: 500 });
+  }
+  if (!claimed || claimed.length === 0) {
+    // Another tick already holds the claim, OR the vault has moved past
+    // settle-able status (e.g. just flipped to disbursed). Either way:
+    // do nothing; if we still need a count update for this failed ping
+    // it's not worth racing on.
     return NextResponse.json({
       signal,
       statusCode,
@@ -130,18 +154,6 @@ export async function POST(
       debounced: true,
     });
   }
-
-  // Mark the attempt timestamp BEFORE the network call so concurrent ticks
-  // see the debounce window. settle_error is cleared so the dashboard reflects
-  // the retry attempt.
-  await svc
-    .from("vaults")
-    .update({
-      triggered_at: new Date().toISOString(),
-      settle_error: null,
-      consecutive_failures: nextFailures,
-    })
-    .eq("id", id);
 
   try {
     const settled = await settleVault(vault, "breach");

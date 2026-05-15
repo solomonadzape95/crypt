@@ -16,11 +16,23 @@ type Signer = "platform" | "resolver";
 
 async function submit(xdr: string, signer: Signer): Promise<string> {
   const signed = signer === "resolver" ? signWithResolver(xdr) : signWithPlatform(xdr);
+  let twErr: unknown;
   try {
     const r = await twSendSignedXDR(signed);
-    return r.hash ?? "";
-  } catch {
+    if (r.hash) return r.hash;
+    // SUCCESS but no hash — twSendSignedXDR already tries to compute it
+    // locally. If we got here, fall through to Horizon as a last resort.
+    twErr = new Error("TW send-transaction returned no hash and could not be derived");
+  } catch (e) {
+    twErr = e;
+  }
+  try {
     return await submitSigned(signed);
+  } catch (horizonErr) {
+    const twMsg = twErr instanceof Error ? twErr.message : String(twErr);
+    const hMsg = horizonErr instanceof Error ? horizonErr.message : String(horizonErr);
+    // Surface BOTH so we can tell which path actually killed us.
+    throw new Error(`submit failed via TW (${twMsg}) and Horizon (${hMsg})`);
   }
 }
 
