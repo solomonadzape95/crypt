@@ -21,6 +21,9 @@ export function TwoSidedVault({ vault, me }: Props) {
   const isProvider = me === vault.provider_wallet;
   const isSubscriber = me === vault.subscriber_wallet;
 
+  const providerDepositLabel = isProvider ? "your deposit · provider" : "provider deposit";
+  const subscriberDepositLabel = isSubscriber ? "your deposit · subscriber" : "subscriber deposit";
+
   return (
     <section className="border border-[var(--rule-0)] bg-[var(--ink-1)]">
       <header className="flex items-center justify-between px-4 h-9 border-b border-[var(--rule-0)] bg-[var(--ink-2)]">
@@ -36,8 +39,8 @@ export function TwoSidedVault({ vault, me }: Props) {
 
       <div className="grid grid-cols-[1fr_auto_1fr]">
         <Pillar
-          role={isProvider ? "you · provider" : "provider"}
-          subtitle={isProvider ? "your deposit" : "provider deposit"}
+          depositLabel={providerDepositLabel}
+          isMe={isProvider}
           address={vault.provider_wallet}
           payoutTarget={vault.provider_payout_target}
           amount={Number(vault.guarantee_usdc)}
@@ -46,8 +49,8 @@ export function TwoSidedVault({ vault, me }: Props) {
         />
         <Bridge status={vault.status} />
         <Pillar
-          role={isSubscriber ? "you · subscriber" : "subscriber"}
-          subtitle={isSubscriber ? "your deposit" : "subscriber deposit"}
+          depositLabel={subscriberDepositLabel}
+          isMe={isSubscriber}
           address={vault.subscriber_wallet}
           payoutTarget={vault.subscriber_payout_target}
           amount={Number(vault.subscription_fee_usdc)}
@@ -60,16 +63,16 @@ export function TwoSidedVault({ vault, me }: Props) {
 }
 
 function Pillar({
-  role,
-  subtitle,
+  depositLabel,
+  isMe,
   address,
   payoutTarget,
   amount,
   funded,
   fundedAt,
 }: {
-  role: string;
-  subtitle: string;
+  depositLabel: string;
+  isMe: boolean;
   address: string;
   payoutTarget: string | null;
   amount: number;
@@ -80,7 +83,7 @@ function Pillar({
     <motion.div
       animate={{ opacity: funded ? 1 : 0.55 }}
       transition={{ duration: 0.3, ease: "easeOut" }}
-      className="relative p-6 flex flex-col gap-3"
+      className="relative p-6 flex flex-col gap-2"
     >
       {funded && (
         <motion.span
@@ -91,8 +94,14 @@ function Pillar({
           style={{ background: "var(--amber)" }}
         />
       )}
-      <div className="flex items-baseline justify-between">
-        <span className="label">{role}</span>
+      {/* Header: deposit label (left) + lock status (right) — directly above the amount */}
+      <div className="flex items-baseline justify-between gap-3">
+        <span
+          className="label"
+          style={{ color: isMe ? "var(--amber)" : "var(--fg-2)" }}
+        >
+          {depositLabel}
+        </span>
         <span
           className="label"
           style={{ color: funded ? "var(--amber)" : "var(--fg-3)" }}
@@ -100,15 +109,15 @@ function Pillar({
           {funded ? "● locked" : "○ unfunded"}
         </span>
       </div>
-      <span className="numeric text-[var(--fg-2)] text-xs">{subtitle}</span>
+      {/* The amount — first thing under the label */}
       <span
-        className="numeric font-medium tracking-tight text-4xl"
+        className="numeric font-medium tracking-tight text-4xl mt-2"
         style={{ color: funded ? "var(--fg-0)" : "var(--fg-2)" }}
       >
         {amount.toFixed(2)}
         <span className="text-sm text-[var(--fg-2)]"> USDC</span>
       </span>
-      <div className="flex flex-col gap-1 pt-2 border-t border-[var(--rule-0)] mt-1">
+      <div className="flex flex-col gap-1 pt-3 border-t border-[var(--rule-0)] mt-2">
         <Line label="wallet" value={address} />
         {payoutTarget && payoutTarget !== address && (
           <Line label="paid to →" value={payoutTarget} accent />

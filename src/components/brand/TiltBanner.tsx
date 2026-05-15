@@ -1,13 +1,17 @@
+import { flatBottomSlashPoints } from "./slash";
+
 type Props = {
   className?: string;
   width?: number;
 };
 
-/**
- * Wide banner: full "tilt" wordmark with small \, large \, and dot as separate marks.
- */
+/** Wide banner: full "tilt" with amber block slashes (flat bottoms) as separate marks. */
 export function TiltBanner({ className, width = 640 }: Props) {
   const height = (width / 640) * 160;
+  const cutY = 108;
+
+  const smallSlash = flatBottomSlashPoints(310, 68, 330, 125, 9, cutY);
+  const largeSlash = flatBottomSlashPoints(332, 48, 380, 125, 11.5, cutY);
 
   return (
     <svg
@@ -35,25 +39,8 @@ export function TiltBanner({ className, width = 640 }: Props) {
         tilt
       </text>
 
-      <line
-        x1="308"
-        y1="72"
-        x2="328"
-        y2="112"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="square"
-      />
-      <line
-        x1="330"
-        y1="52"
-        x2="378"
-        y2="118"
-        stroke="currentColor"
-        strokeWidth="3"
-        strokeLinecap="square"
-      />
-      <circle cx="392" cy="108" r="7" style={{ fill: "var(--amber)" }} />
+      <polygon points={smallSlash} style={{ fill: "var(--amber)" }} />
+      <polygon points={largeSlash} style={{ fill: "var(--amber)" }} />
     </svg>
   );
 }

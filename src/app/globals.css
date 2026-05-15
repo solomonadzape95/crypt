@@ -2,8 +2,9 @@
 
 /*
  * tilt — operator console design tokens.
- * Monospace throughout: Azeret Mono for body/labels/numerics, Nova Mono for
- * the display moments. OKLCH for perceptual uniformity. One hot accent.
+ * Monospace throughout. JetBrains Mono is the single family — readable at
+ * every size, weight-graded for body/labels/numerics and display headlines.
+ * OKLCH for perceptual uniformity. One hot accent.
  */
 
 :root {
@@ -33,11 +34,11 @@
   --signal-fail:  oklch(0.66 0.22 25);
   --signal-wait:  oklch(0.78 0.18 75);
 
-  /* Font stacks — every var() has a hard ui-monospace fallback so the page
-   * can never collapse to serif if next/font flakes. */
-  --stack-body:    var(--font-azeret, ui-monospace), "JetBrains Mono", Menlo, Consolas, monospace;
-  --stack-display: var(--font-nova, var(--font-azeret, ui-monospace)), "Courier Prime", ui-monospace, monospace;
-  --stack-mono:    var(--font-azeret, ui-monospace), "JetBrains Mono", Menlo, Consolas, monospace;
+  /* Font stacks — JetBrains Mono via next/font, with a hard ui-monospace
+   * fallback so the page never collapses to a serif if next/font flakes. */
+  --stack-body:    var(--font-jb, "JetBrains Mono"), ui-monospace, Menlo, Consolas, monospace;
+  --stack-display: var(--font-jb, "JetBrains Mono"), ui-monospace, Menlo, Consolas, monospace;
+  --stack-mono:    var(--font-jb, "JetBrains Mono"), ui-monospace, Menlo, Consolas, monospace;
 
   /* spacing scale (4pt) */
   --space-2xs: 0.25rem;
@@ -108,12 +109,12 @@ body {
   font-weight: 500;
 }
 
-/* Display headline — Nova Mono. Single weight, geometric, retro-terminal. */
+/* Display headline — JetBrains Mono at 600 weight. Reads cleanly at scale. */
 .display {
   font-family: var(--stack-display);
-  font-weight: 400;
-  letter-spacing: -0.04em;
-  line-height: 0.94;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 0.96;
 }
 
 /* Wordmark — Azeret Mono (secondary stack), all-lowercase. */

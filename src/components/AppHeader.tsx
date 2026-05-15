@@ -79,11 +79,11 @@ export function AppHeader({ crumbs = [], address, rightLinks = [] }: Props) {
   );
 }
 
-/** Header wordmark — slash + amber dot replace "l". */
+/** Header wordmark — amber block slashes replace i and l. */
 export function Wordmark() {
   return (
     <span className="flex items-center select-none text-foreground">
-      <TiltLogo height={20} />
+      <TiltLogo height={26} />
     </span>
   );
 }

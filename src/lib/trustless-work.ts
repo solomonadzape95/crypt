@@ -120,7 +120,7 @@ export async function twSendSignedXDR(signedXDR: string): Promise<{
     signedXdr: signedXDR,
   });
   const escrow = (r.escrow as Record<string, unknown> | undefined) ?? {};
-  const hash =
+  let hash =
     (r.hash as string) ??
     (r.txHash as string) ??
     (r.transactionHash as string) ??
@@ -128,6 +128,23 @@ export async function twSendSignedXDR(signedXDR: string): Promise<{
     (escrow.txHash as string) ??
     (escrow.transactionHash as string) ??
     null;
+  // TW's send-transaction often returns { status: "SUCCESS", contractId, escrow }
+  // with NO hash field at all. The tx still landed on chain — the hash is a
+  // deterministic SHA256 of the transaction signature payload, so we compute
+  // it ourselves from the signed XDR when TW omits it.
+  if (!hash && (r.status === "SUCCESS" || r.status === "success")) {
+    try {
+      const { TransactionBuilder, Networks } = await import("@stellar/stellar-sdk");
+      const network =
+        process.env.NEXT_PUBLIC_STELLAR_NETWORK === "PUBLIC"
+          ? Networks.PUBLIC
+          : Networks.TESTNET;
+      const tx = TransactionBuilder.fromXDR(signedXDR, network);
+      hash = tx.hash().toString("hex");
+    } catch {
+      // best-effort; leave hash null if we can't parse
+    }
+  }
   const contractId =
     (r.contractId as string) ??
     (r.escrowAddress as string) ??
@@ -135,6 +152,47 @@ export async function twSendSignedXDR(signedXDR: string): Promise<{
     (escrow.contractId as string) ??
     null;
   return { hash, contractId, raw: r };
+}
+
+/**
+ * Verify a Soroban tx actually succeeded on-chain. TW's send-transaction
+ * reports "SUCCESS" once submitted, but the host function inside the tx can
+ * still revert (e.g. fund-escrow reverts if the funder is short on USDC).
+ * Poll Horizon for the tx and read `successful` + `result_xdr`.
+ *
+ * Returns:
+ *   { ok: true } if Horizon confirms success
+ *   { ok: false, reason } if the tx failed or didn't appear within timeout
+ */
+export async function verifyTxOnChain(
+  hash: string,
+  opts: { timeoutMs?: number } = {}
+): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const horizonUrl =
+    process.env.NEXT_PUBLIC_HORIZON_URL ?? "https://horizon-testnet.stellar.org";
+  const deadline = Date.now() + (opts.timeoutMs ?? 12_000);
+  let lastBody: unknown = null;
+  while (Date.now() < deadline) {
+    const res = await fetch(`${horizonUrl}/transactions/${hash}`, {
+      cache: "no-store",
+    });
+    if (res.ok) {
+      const body = (await res.json()) as { successful?: boolean; result_xdr?: string };
+      lastBody = body;
+      if (body.successful === true) return { ok: true };
+      if (body.successful === false) {
+        return {
+          ok: false,
+          reason: `tx ${hash} reverted on-chain (result_xdr=${body.result_xdr ?? "?"})`,
+        };
+      }
+    }
+    await new Promise((r) => setTimeout(r, 800));
+  }
+  return {
+    ok: false,
+    reason: `tx ${hash} did not appear on Horizon within timeout (last=${JSON.stringify(lastBody).slice(0, 200)})`,
+  };
 }
 
 export async function twApproveMilestone(

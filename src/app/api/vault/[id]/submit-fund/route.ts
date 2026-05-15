@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getServiceClient } from "@/lib/supabase-server";
 import { readSession } from "@/lib/wallet-session";
-import { twSendSignedXDR } from "@/lib/trustless-work";
+import { twSendSignedXDR, verifyTxOnChain } from "@/lib/trustless-work";
 import { submitSigned } from "@/lib/stellar";
 
 type Side = "guarantee" | "subscription";
@@ -72,6 +72,26 @@ export async function POST(
         error:
           "Funding transaction failed on Stellar. Check that your wallet has enough USDC and the USDC trustline is set up. Original error: " +
           detail,
+      },
+      { status: 502 }
+    );
+  }
+
+  // TW reports "SUCCESS" on submission, but the host function inside the
+  // Soroban tx can still revert (e.g. fund_escrow reverts on insufficient
+  // USDC). Confirm the tx is `successful: true` on Horizon before marking
+  // the escrow funded — otherwise we end up with an empty escrow and a
+  // "locked" vault that can never settle.
+  const verify = await verifyTxOnChain(txHash);
+  if (!verify.ok) {
+    console.error(`[submit-fund] tx ${txHash} did not succeed on-chain: ${verify.reason}`);
+    return NextResponse.json(
+      {
+        error:
+          "Funding transaction was submitted but did not succeed on Stellar — the on-chain call reverted. This usually means your wallet is short on USDC, missing the USDC trustline, or the escrow contract isn't ready. Tx: " +
+          txHash +
+          " — " +
+          verify.reason,
       },
       { status: 502 }
     );

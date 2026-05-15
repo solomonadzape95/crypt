@@ -1,70 +1,42 @@
-"use client";
-
-import { motion } from "framer-motion";
+import { flatBottomSlashPoints } from "./slash";
 
 type Props = {
   className?: string;
+  /** Cap height in px; design baseline is 20. */
   height?: number;
-  pulse?: boolean;
 };
 
-/**
- * Compact wordmark: t + small \ + large \ + amber dot + t
- * (backward slashes replace i and l).
- */
-export function TiltLogo({ className, height = 20, pulse = true }: Props) {
-  const scale = height / 20;
-  const w = 47 * scale;
-  const h = 28 * scale;
+const BASE = 20;
 
-  const Dot = pulse ? motion.circle : "circle";
-  const dotProps = pulse
-    ? {
-        animate: { opacity: [1, 0.3, 1] },
-        transition: { duration: 2.2, repeat: Infinity, ease: "linear" as const },
-      }
-    : {};
+/** Compact wordmark: t + small \ + large \ + t (amber block slashes, flat bottoms). */
+export function TiltLogo({ className, height = 26 }: Props) {
+  const s = height / BASE;
+  const fontSize = BASE * s;
+  const textY = 21 * s;
+  const cutY = 21.5 * s;
+  const viewW = 40 * s;
+  const viewH = 28 * s;
+
+  const smallSlash = flatBottomSlashPoints(13 * s, 11.5 * s, 16.5 * s, 24 * s, 2.75 * s, cutY);
+  const largeSlash = flatBottomSlashPoints(17 * s, 5.5 * s, 25 * s, 24 * s, 3.5 * s, cutY);
 
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 47 28"
-      width={w}
-      height={h}
+      viewBox={`0 0 ${viewW} ${viewH}`}
+      width={viewW}
+      height={viewH}
       fill="none"
       className={className}
       role="img"
       aria-label="tilt"
     >
-      <text x="0" y="21" className="wordmark" fontSize="20" fill="currentColor">
+      <text x="0" y={textY} className="wordmark" fontSize={fontSize} fill="currentColor">
         t
       </text>
-      <line
-        x1="13"
-        y1="12"
-        x2="16"
-        y2="20"
-        stroke="currentColor"
-        strokeWidth="1.25"
-        strokeLinecap="square"
-      />
-      <line
-        x1="16.25"
-        y1="6"
-        x2="24.5"
-        y2="22"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="square"
-      />
-      <Dot
-        cx={26}
-        cy={19}
-        r={2.5}
-        style={{ fill: "var(--amber)" }}
-        {...dotProps}
-      />
-      <text x="35" y="21" className="wordmark" fontSize="20" fill="currentColor">
+      <polygon points={smallSlash} style={{ fill: "var(--amber)" }} />
+      <polygon points={largeSlash} style={{ fill: "var(--amber)" }} />
+      <text x={28 * s} y={textY} className="wordmark" fontSize={fontSize} fill="currentColor">
         t
       </text>
     </svg>

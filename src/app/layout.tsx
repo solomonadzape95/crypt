@@ -1,19 +1,15 @@
 import type { Metadata } from "next";
-import { Azeret_Mono, Nova_Mono } from "next/font/google";
+import { JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-const azeret = Azeret_Mono({
-  variable: "--font-azeret",
+// One mono family across the whole app. JetBrains Mono trades the typewriter
+// stiffness of Azeret/Nova for a humanist, much-more-readable hand at every
+// size — same operator-console vibe, fewer "is that a 0 or O" moments.
+const jb = JetBrains_Mono({
+  variable: "--font-jb",
   subsets: ["latin"],
   display: "swap",
   weight: ["300", "400", "500", "600", "700"],
-});
-
-const nova = Nova_Mono({
-  variable: "--font-nova",
-  subsets: ["latin"],
-  display: "swap",
-  weight: ["400"],
 });
 
 export const metadata: Metadata = {
@@ -26,7 +22,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html
       lang="en"
-      className={`${azeret.variable} ${nova.variable} h-full antialiased`}
+      className={`${jb.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
