@@ -1,26 +1,143 @@
 @import "tailwindcss";
 
+/*
+ * tilt — operator console design tokens.
+ * Monospace throughout: Azeret Mono for body/labels/numerics, Nova Mono for
+ * the display moments. OKLCH for perceptual uniformity. One hot accent.
+ */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* surfaces */
+  --ink-0: oklch(0.115 0.008 250);
+  --ink-1: oklch(0.16  0.008 250);
+  --ink-2: oklch(0.21  0.008 250);
+  --ink-3: oklch(0.27  0.008 250);
+
+  /* foreground */
+  --fg-0: oklch(0.97 0.005 250);
+  --fg-1: oklch(0.78 0.006 250);
+  --fg-2: oklch(0.58 0.006 250);
+  --fg-3: oklch(0.42 0.006 250);
+
+  /* hairlines */
+  --rule-0: oklch(0.25 0.006 250);
+  --rule-1: oklch(0.32 0.006 250);
+
+  /* hot accent — hazard amber */
+  --amber:     oklch(0.80 0.18 75);
+  --amber-dim: oklch(0.55 0.13 75);
+  --amber-bg:  oklch(0.22 0.08 75);
+
+  /* semantic status */
+  --signal-ok:    oklch(0.74 0.16 145);
+  --signal-fail:  oklch(0.66 0.22 25);
+  --signal-wait:  oklch(0.78 0.18 75);
+
+  /* Font stacks — every var() has a hard ui-monospace fallback so the page
+   * can never collapse to serif if next/font flakes. */
+  --stack-body:    var(--font-azeret, ui-monospace), "JetBrains Mono", Menlo, Consolas, monospace;
+  --stack-display: var(--font-nova, var(--font-azeret, ui-monospace)), "Courier Prime", ui-monospace, monospace;
+  --stack-mono:    var(--font-azeret, ui-monospace), "JetBrains Mono", Menlo, Consolas, monospace;
+
+  /* spacing scale (4pt) */
+  --space-2xs: 0.25rem;
+  --space-xs:  0.5rem;
+  --space-sm:  0.75rem;
+  --space-md:  1rem;
+  --space-lg:  1.5rem;
+  --space-xl:  2rem;
+  --space-2xl: 3rem;
+  --space-3xl: 4rem;
+  --space-4xl: 6rem;
+
+  --tracked: 0.18em;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-background: var(--ink-0);
+  --color-foreground: var(--fg-0);
+  --color-ink-1: var(--ink-1);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-fg-1: var(--fg-1);
+  --color-fg-2: var(--fg-2);
+  --color-fg-3: var(--fg-3);
+  --color-rule: var(--rule-0);
+  --color-rule-hover: var(--rule-1);
+  --color-amber: var(--amber);
+  --color-amber-dim: var(--amber-dim);
+  --color-amber-bg: var(--amber-bg);
+  --color-signal-ok: var(--signal-ok);
+  --color-signal-fail: var(--signal-fail);
+  --color-signal-wait: var(--signal-wait);
+  --font-sans: var(--stack-body);
+  --font-mono: var(--stack-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  background: var(--ink-0);
+  color: var(--fg-0);
+  font-family: var(--stack-body);
+  font-size: 15px;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--ink-0);
+  color: var(--fg-0);
+  font-family: var(--stack-body);
+  font-feature-settings: "ss01", "calt";
+  line-height: 1.5;
+}
+
+/* Numeric/data atoms — same stack, tabular figures forced on. */
+.numeric {
+  font-family: var(--stack-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  letter-spacing: -0.01em;
+}
+
+/* Label strip — uppercase, tracked, the operator chrome. */
+.label {
+  font-family: var(--stack-mono);
+  font-size: 0.6875rem;
+  line-height: 1;
+  letter-spacing: var(--tracked);
+  text-transform: uppercase;
+  color: var(--fg-2);
+  font-weight: 500;
+}
+
+/* Display headline — Nova Mono. Single weight, geometric, retro-terminal. */
+.display {
+  font-family: var(--stack-display);
+  font-weight: 400;
+  letter-spacing: -0.04em;
+  line-height: 0.94;
+}
+
+/* Wordmark — Azeret Mono (secondary stack), all-lowercase. */
+.wordmark {
+  font-family: var(--stack-mono);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  text-transform: lowercase;
+}
+
+::selection {
+  background: var(--amber);
+  color: var(--ink-0);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--rule-1) transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
