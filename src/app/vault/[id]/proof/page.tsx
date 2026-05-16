@@ -5,7 +5,7 @@ import { HeartbeatMonitor } from "@/components/HeartbeatMonitor";
 import { Panel, MetricRow, LabeledRule } from "@/components/Panel";
 import { getServiceClient } from "@/lib/supabase-server";
 import { disputeLabel } from "@/lib/dispute-labels";
-import type { CheckRow, Vault } from "@/lib/types";
+import type { CheckRow, Listing, Vault } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +20,10 @@ export default async function VaultProofPage(props: { params: Promise<Params> })
   const { data: vault } = await svc.from("vaults").select("*").eq("id", id).single();
   if (!vault) notFound();
   const v = vault as Vault;
+  const { data: listing } = v.listing_id
+    ? await svc.from("listings").select("*").eq("id", v.listing_id).maybeSingle()
+    : { data: null };
+  const l = (listing as Listing | null) ?? null;
   const { data: checks } = await svc
     .from("checks")
     .select("*")
@@ -139,7 +143,10 @@ export default async function VaultProofPage(props: { params: Promise<Params> })
           )}
         </Panel>
 
-        <LabeledRule label={`02 · heartbeat (last ${checkRows.length})`} />
+        <LabeledRule label="02 · payout logic" />
+        <PayoutLogic vault={v} listing={l} />
+
+        <LabeledRule label={`03 · heartbeat (last ${checkRows.length})`} />
         <Panel label="checks">
           <div className="px-4 py-4">
             <HeartbeatMonitor checks={checkRows} />
@@ -148,7 +155,7 @@ export default async function VaultProofPage(props: { params: Promise<Params> })
 
         {(v.dispute_status !== "none" || breachAt) && (
           <>
-            <LabeledRule label="03 · trigger + dispute" />
+            <LabeledRule label="04 · trigger + dispute" />
             <Panel label="dispute trail">
               <MetricRow label="breach detected" value={breachAt ?? "—"} />
               {v.dispute_status !== "none" && (
@@ -181,18 +188,22 @@ export default async function VaultProofPage(props: { params: Promise<Params> })
 
         {(v.guarantee_payout_tx_hash || v.subscription_payout_tx_hash) && (
           <>
-            <LabeledRule label="04 · settlement on chain" />
+            <LabeledRule label="05 · settlement on chain" />
             <Panel label="payouts">
               {v.guarantee_payout_tx_hash && (
                 <ProofLink
-                  label="provider deposit released"
+                  label={
+                    v.dispute_status === "resolved_subscriber"
+                      ? "guarantee → subscriber"
+                      : "guarantee → provider"
+                  }
                   value={v.guarantee_payout_tx_hash}
                   href={`${explorer}/tx/${v.guarantee_payout_tx_hash}`}
                 />
               )}
               {v.subscription_payout_tx_hash && (
                 <ProofLink
-                  label="subscriber deposit released"
+                  label="subscription fee → provider"
                   value={v.subscription_payout_tx_hash}
                   href={`${explorer}/tx/${v.subscription_payout_tx_hash}`}
                 />
@@ -203,6 +214,124 @@ export default async function VaultProofPage(props: { params: Promise<Params> })
       </section>
     </main>
   );
+}
+
+/**
+ * Surfaces the exact formula used to compute the breach payout for this
+ * vault, plus what was/will be released to each side. Public-facing so a
+ * subscriber's lawyer (or anyone with the link) can audit the math.
+ */
+function PayoutLogic({ vault: v, listing: l }: { vault: Vault; listing: Listing | null }) {
+  const pool = v.claim_amount_usdc != null;
+  const fee = Number(v.subscription_fee_usdc);
+  const guarantee = Number(v.guarantee_usdc);
+  const claim = Number(v.claim_amount_usdc ?? 0);
+  const ratio = l?.coverage_ratio_x ?? null;
+  // Reverse-derive period multiplier from the recorded claim:
+  //   claim = fee × multiplier × ratio  →  multiplier = claim / (fee × ratio)
+  const periodMultiplier =
+    pool && ratio && fee > 0 ? round2(claim / (fee * ratio)) : null;
+
+  const breachAmount = pool ? claim : guarantee;
+  const formula = pool
+    ? ratio != null && periodMultiplier != null
+      ? `${fee.toFixed(2)} fee × ${periodMultiplier}× period × ${ratio}× coverage`
+      : `pool claim · ${claim.toFixed(2)} USDC fixed at subscribe time`
+    : `provider's locked guarantee · fixed at subscribe time`;
+
+  const settled = v.status === "disbursed";
+  const outcome: "breach" | "clean" | "pending" = settled
+    ? v.dispute_status === "resolved_subscriber"
+      ? "breach"
+      : "clean"
+    : "pending";
+
+  return (
+    <Panel
+      label={pool ? "payout · pool-backed" : "payout · per-vault"}
+      trailing={
+        outcome === "breach"
+          ? "breach · paid"
+          : outcome === "clean"
+            ? "clean · paid"
+            : "not yet settled"
+      }
+    >
+      <div className="px-4 py-4 border-b border-[var(--rule-0)] flex flex-col gap-2">
+        <span className="label">if breach</span>
+        <div className="flex items-baseline justify-between gap-3">
+          <span className="numeric text-[12px] text-[var(--fg-1)] break-all">
+            {formula}
+          </span>
+          <span
+            className="numeric font-medium"
+            style={{ color: "var(--amber)", fontSize: "1.25rem", lineHeight: 1 }}
+          >
+            {breachAmount.toFixed(2)} USDC
+          </span>
+        </div>
+        <span className="label text-[var(--fg-3)] normal-case tracking-normal text-[12px]">
+          → subscriber payout target ·{" "}
+          <span className="numeric break-all text-[var(--fg-1)]">
+            {v.subscriber_payout_target ?? v.subscriber_wallet}
+          </span>
+        </span>
+      </div>
+
+      <div className="px-4 py-4 border-b border-[var(--rule-0)] flex flex-col gap-2">
+        <span className="label">if clean</span>
+        <div className="flex items-baseline justify-between gap-3">
+          <span className="numeric text-[12px] text-[var(--fg-1)]">
+            provider keeps the {pool ? "pool slot" : `${guarantee.toFixed(2)} guarantee`}
+          </span>
+          <span
+            className="numeric font-medium text-[var(--fg-0)]"
+            style={{ fontSize: "1.1rem", lineHeight: 1 }}
+          >
+            {pool ? "—" : `${guarantee.toFixed(2)} USDC`}
+          </span>
+        </div>
+      </div>
+
+      <div className="px-4 py-4 flex flex-col gap-2">
+        <span className="label">subscription fee · always</span>
+        <div className="flex items-baseline justify-between gap-3">
+          <span className="numeric text-[12px] text-[var(--fg-1)]">
+            subscriber paid; provider keeps it regardless of outcome
+          </span>
+          <span
+            className="numeric text-[var(--fg-0)]"
+            style={{ fontSize: "1.1rem", lineHeight: 1 }}
+          >
+            {fee.toFixed(2)} USDC
+          </span>
+        </div>
+      </div>
+
+      {outcome !== "pending" && (
+        <div className="px-4 py-3 border-t border-[var(--rule-0)] flex items-baseline justify-between gap-3">
+          <span className="label">resolved outcome</span>
+          <span
+            className="numeric font-medium"
+            style={{
+              color:
+                outcome === "breach"
+                  ? "var(--amber)"
+                  : "var(--signal-ok)",
+            }}
+          >
+            {outcome === "breach"
+              ? `breach · ${breachAmount.toFixed(2)} USDC → subscriber`
+              : `clean · ${(pool ? 0 : guarantee).toFixed(2)} + ${fee.toFixed(2)} USDC → provider`}
+          </span>
+        </div>
+      )}
+    </Panel>
+  );
+}
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
 }
 
 function ProofLink({

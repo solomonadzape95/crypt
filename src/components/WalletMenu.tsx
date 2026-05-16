@@ -49,6 +49,11 @@ export function WalletMenu({ address }: Props) {
     setOpen(false);
     await fetch("/api/auth/logout", { method: "POST" });
     router.replace("/");
+    // If we were already on "/", `replace` is a no-op and the
+    // server-rendered tree (which read the now-cleared session cookie)
+    // would stay stale. Force a fresh RSC fetch so the landing page
+    // re-renders signed-out.
+    router.refresh();
   }
 
   const short = `${address.slice(0, 4)}…${address.slice(-4)}`;

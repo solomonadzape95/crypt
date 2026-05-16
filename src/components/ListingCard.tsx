@@ -14,9 +14,9 @@ export function ListingCard({ listing }: { listing: Listing }) {
       className="group block border-t border-[var(--rule-0)] last:border-b last:border-b-[var(--rule-0)]
                  hover:bg-[var(--ink-1)] transition-colors"
     >
-      <div className="grid grid-cols-[1fr_minmax(8rem,_auto)_minmax(8rem,_auto)_minmax(5rem,_auto)]
-                      items-stretch divide-x divide-[var(--rule-0)]">
-        <div className="flex flex-col gap-1 min-w-0 px-4 py-4 justify-center">
+      <div className="grid grid-cols-3 md:grid-cols-[1fr_minmax(8rem,_auto)_minmax(8rem,_auto)_minmax(5rem,_auto)]
+                      items-stretch md:divide-x divide-y md:divide-y-0 divide-[var(--rule-0)]">
+        <div className="col-span-3 md:col-span-1 flex flex-col gap-1 min-w-0 px-4 py-4 justify-center">
           <span className="label flex items-center gap-2">
             <span>
               {listing.provider_wallet.slice(0, 6)}…{listing.provider_wallet.slice(-4)}
@@ -58,7 +58,7 @@ function Cell({
   accent?: boolean;
 }) {
   return (
-    <div className="flex flex-col items-end gap-1 px-4 py-4 justify-center">
+    <div className="flex flex-col items-start md:items-end gap-1 px-4 py-3 md:py-4 justify-center">
       <span className="label">{label}</span>
       <span
         className="numeric text-sm"

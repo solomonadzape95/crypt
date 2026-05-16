@@ -50,9 +50,22 @@ export function PoolPanel({ listing, vaults }: Props) {
           v.status === "under_threat"),
     )
     .reduce((s, v) => s + Number(v.claim_amount_usdc ?? 0), 0);
-  const total = Number(listing.pool_amount_usdc ?? 0);
-  const available = Math.max(0, total - reserved);
-  const utilisation = total > 0 ? Math.min(100, (reserved / total) * 100) : 0;
+  // Lifetime drawn = sum of breach payouts already drained from the pool.
+  // Each breach re-issues the pool with the remainder, so the current
+  // pool_amount_usdc is *post-drain*. Adding paidOut back reconstructs the
+  // pool's original size.
+  const paidOut = vaults
+    .filter(
+      (v) =>
+        v.status === "disbursed" &&
+        v.dispute_status === "resolved_subscriber" &&
+        v.claim_amount_usdc != null,
+    )
+    .reduce((s, v) => s + Number(v.claim_amount_usdc ?? 0), 0);
+  const currentPool = Number(listing.pool_amount_usdc ?? 0);
+  const originalPool = currentPool + paidOut;
+  const available = Math.max(0, currentPool - reserved);
+  const drawnPct = originalPool > 0 ? Math.min(100, (paidOut / originalPool) * 100) : 0;
 
   if (!listing.pool_funded_at) {
     return (
@@ -118,19 +131,31 @@ export function PoolPanel({ listing, vaults }: Props) {
     <Panel label="pool" trailing={`${listing.coverage_ratio_x ?? 10}× coverage`}>
       <div className="px-4 py-4 flex flex-col gap-3 border-b border-[var(--rule-0)]">
         <div className="flex items-baseline justify-between gap-3">
-          <span className="label">utilisation · {Math.round(utilisation)}%</span>
+          <span className="label">drawn down · {Math.round(drawnPct)}%</span>
           <span className="numeric text-sm text-[var(--fg-2)]">
-            {reserved.toFixed(2)} reserved · {available.toFixed(2)} free
+            {paidOut.toFixed(2)} paid · {currentPool.toFixed(2)} left
           </span>
         </div>
-        {/* Two-segment bar: amber fill on the left, dimmer "free" track on
-            the right, so the structure is always visible even at 0%. */}
-        <div className="grid h-1.5" style={{ gridTemplateColumns: `${utilisation}fr ${100 - utilisation}fr` }}>
+        {/* Two-segment bar: amber slice = lifetime paid out, dimmer track =
+            what's left in the pool. Always visible, even at 0% drawn. */}
+        <div className="grid h-1.5" style={{ gridTemplateColumns: `${drawnPct}fr ${100 - drawnPct}fr` }}>
           <div className="bg-[var(--amber)]" />
           <div className="bg-[var(--ink-2)] border-l border-[var(--rule-0)]" />
         </div>
       </div>
-      <MetricRow label="total pool" value={`${total.toFixed(2)} USDC`} />
+      <MetricRow
+        label="original deposit"
+        value={`${originalPool.toFixed(2)} USDC`}
+      />
+      <MetricRow
+        label="paid out · breaches"
+        value={`${paidOut.toFixed(2)} USDC`}
+      />
+      <MetricRow
+        label="remaining in pool"
+        value={`${currentPool.toFixed(2)} USDC`}
+        accent="amber"
+      />
       <MetricRow
         label="reserved · active subs"
         value={`${reserved.toFixed(2)} USDC`}
@@ -138,7 +163,6 @@ export function PoolPanel({ listing, vaults }: Props) {
       <MetricRow
         label="available · new subs"
         value={`${available.toFixed(2)} USDC`}
-        accent="amber"
       />
       {listing.pool_contract_id && (
         <MetricRow

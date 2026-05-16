@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { EB_Garamond, DM_Mono } from "next/font/google";
 import "./globals.css";
+import { FloatingNav } from "@/components/FloatingNav";
 
 // EB Garamond — the main face. Classical serif, body + display. Reads
 // editorial / contract / financial-document.
@@ -31,12 +32,21 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={`${eb.variable} ${dm.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        <FloatingNav />
+      </body>
     </html>
   );
 }

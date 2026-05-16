@@ -11,9 +11,10 @@ type Props = {
   baseFeeUsdc: number;
   periodOptions: PeriodOption[];
   /**
-   * Provider-side payout shape. For per-vault listings, the subscriber gets
-   * the provider's deposit + their own fee back. For pool listings the
-   * subscriber's claim scales as fee × coverageRatioX.
+   * Provider-side payout shape. Breach payouts come from the provider —
+   * the guarantee deposit (per-vault) or fee × coverageRatioX from the pool.
+   * The subscriber's own fee is consumed (provider keeps it for serving the
+   * coverage window) regardless of outcome.
    */
   payoutMode: "per_vault" | "pool";
   guaranteeUsdc: number;
@@ -42,12 +43,12 @@ export function SubscribeDialog({
 
   const selected = periodOptions.find((o) => o.days === periodDays) ?? defaultOption;
   const effectiveFee = baseFeeUsdc * selected.multiplier;
-  // Breach payout = provider claim + your own fee back.
-  const claimAmount =
+  // Breach payout = the provider-funded claim only. The subscription fee
+  // always lands with the provider; coverage comes from the guarantee/pool.
+  const breachPayout =
     payoutMode === "pool"
       ? effectiveFee * (coverageRatioX ?? 10)
       : guaranteeUsdc;
-  const breachPayout = claimAmount + effectiveFee;
 
   async function onConfirm() {
     setErr(null);
@@ -122,12 +123,12 @@ export function SubscribeDialog({
               {breachPayout.toFixed(2)} USDC
             </span>
           </div>
-          {payoutMode === "pool" && (
-            <span className="label text-[var(--fg-3)] -mt-3">
-              {effectiveFee.toFixed(2)} fee × {coverageRatioX ?? 10}× coverage
-              + your {effectiveFee.toFixed(2)} deposit refunded
-            </span>
-          )}
+          <span className="label text-[var(--fg-3)] -mt-3">
+            {payoutMode === "pool"
+              ? `${effectiveFee.toFixed(2)} fee × ${coverageRatioX ?? 10}× coverage from the pool`
+              : `provider's ${guaranteeUsdc.toFixed(2)} guarantee deposit`}
+            {" "}· your {effectiveFee.toFixed(2)} fee stays with the provider either way
+          </span>
 
           <div className="flex flex-col gap-2">
             <span className="label">payout wallet</span>

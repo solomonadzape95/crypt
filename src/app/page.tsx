@@ -1,8 +1,33 @@
 import Link from "next/link";
 import { Wordmark } from "@/components/AppHeader";
+import { WalletMenu } from "@/components/WalletMenu";
 import { BarsMarkPattern } from "@/components/brand/BarsMarkPattern";
+import { readSession } from "@/lib/wallet-session";
+import { getServiceClient } from "@/lib/supabase-server";
 
-export default function Home() {
+type Role = "provider" | "subscriber";
+
+async function pickRole(address: string): Promise<Role> {
+  // Provider role wins as soon as the wallet has ever listed anything —
+  // it's the higher-touch role and they likely came back here to manage
+  // an offer. Otherwise default to subscriber (covers brand-new users).
+  try {
+    const svc = getServiceClient();
+    const { count } = await svc
+      .from("listings")
+      .select("id", { count: "exact", head: true })
+      .eq("provider_wallet", address);
+    return (count ?? 0) > 0 ? "provider" : "subscriber";
+  } catch {
+    return "subscriber";
+  }
+}
+
+export default async function Home() {
+  const session = await readSession();
+  const address = session?.address ?? null;
+  const role: Role | null = address ? await pickRole(address) : null;
+
   return (
     <main className="relative flex flex-col flex-1 min-h-0">
       {/* Brand pattern sits behind the whole page, sparse + subtle. */}
@@ -10,8 +35,11 @@ export default function Home() {
         <BarsMarkPattern tile={96} opacity={0.07} spacing={1.4} offsetX={64} />
       </div>
 
-      <div className="relative z-10">
-        <TopRail />
+      {/* TopRail must sit in a higher stacking context than the hero section
+          below — both create their own contexts and DOM order would otherwise
+          paint the section over the WalletMenu dropdown, swallowing clicks. */}
+      <div className="relative z-30">
+        <TopRail address={address} />
       </div>
 
       <section
@@ -35,23 +63,7 @@ export default function Home() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 pt-1 rise rise-delay-2">
-            <Link
-              href="/login?next=/subscriber"
-              className="h-11 px-5 border border-[var(--amber)] bg-[var(--amber)]
-                         text-[var(--ink-0)] hover:bg-transparent hover:text-[var(--amber)]
-                         transition-colors uppercase tracking-[0.12em] text-[12px] font-medium
-                         flex items-center"
-            >
-              browse coverage
-            </Link>
-            <Link
-              href="/login?next=/provider"
-              className="h-11 px-5 border border-[var(--rule-0)] text-[var(--fg-0)]
-                         hover:border-[var(--fg-0)] transition-colors
-                         uppercase tracking-[0.12em] text-[12px] font-medium flex items-center"
-            >
-              i&apos;m a provider
-            </Link>
+            {role ? <SignedInCtas role={role} /> : <SignedOutCtas />}
             <Link
               href="/demo"
               className="h-11 px-5 text-[var(--fg-2)] hover:text-[var(--fg-0)]
@@ -73,7 +85,63 @@ export default function Home() {
   );
 }
 
-function TopRail() {
+function SignedOutCtas() {
+  return (
+    <>
+      <Link
+        href="/login?next=/subscriber"
+        className="h-11 px-5 border border-[var(--amber)] bg-[var(--amber)]
+                   text-[var(--ink-0)] hover:bg-transparent hover:text-[var(--amber)]
+                   transition-colors uppercase tracking-[0.12em] text-[12px] font-medium
+                   flex items-center"
+      >
+        browse coverage
+      </Link>
+      <Link
+        href="/login?next=/provider"
+        className="h-11 px-5 border border-[var(--rule-0)] text-[var(--fg-0)]
+                   hover:border-[var(--fg-0)] transition-colors
+                   uppercase tracking-[0.12em] text-[12px] font-medium flex items-center"
+      >
+        i&apos;m a provider
+      </Link>
+    </>
+  );
+}
+
+function SignedInCtas({ role }: { role: Role }) {
+  const primary =
+    role === "provider"
+      ? { href: "/provider", label: "provider dashboard" }
+      : { href: "/subscriber", label: "subscriber dashboard" };
+  const secondary =
+    role === "provider"
+      ? { href: "/marketplace", label: "browse marketplace" }
+      : { href: "/marketplace", label: "browse marketplace" };
+  return (
+    <>
+      <Link
+        href={primary.href}
+        className="h-11 px-5 border border-[var(--amber)] bg-[var(--amber)]
+                   text-[var(--ink-0)] hover:bg-transparent hover:text-[var(--amber)]
+                   transition-colors uppercase tracking-[0.12em] text-[12px] font-medium
+                   flex items-center"
+      >
+        {primary.label}
+      </Link>
+      <Link
+        href={secondary.href}
+        className="h-11 px-5 border border-[var(--rule-0)] text-[var(--fg-0)]
+                   hover:border-[var(--fg-0)] transition-colors
+                   uppercase tracking-[0.12em] text-[12px] font-medium flex items-center"
+      >
+        {secondary.label}
+      </Link>
+    </>
+  );
+}
+
+function TopRail({ address }: { address: string | null }) {
   return (
     <header className="relative border-b border-[var(--rule-0)] bg-[var(--ink-0)]">
       <span
@@ -95,13 +163,17 @@ function TopRail() {
           >
             how it works
           </Link>
-          <Link
-            href="/login"
-            className="flex items-center px-4 border-l border-[var(--rule-0)] h-14
-                       label hover:text-[var(--amber)] hover:bg-[var(--ink-2)] transition-colors"
-          >
-            sign in
-          </Link>
+          {address ? (
+            <WalletMenu address={address} />
+          ) : (
+            <Link
+              href="/login"
+              className="flex items-center px-4 border-l border-[var(--rule-0)] h-14
+                         label hover:text-[var(--amber)] hover:bg-[var(--ink-2)] transition-colors"
+            >
+              sign in
+            </Link>
+          )}
         </nav>
       </div>
     </header>

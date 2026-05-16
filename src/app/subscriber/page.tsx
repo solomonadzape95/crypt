@@ -52,16 +52,18 @@ export default function SubscriberDashboardPage() {
     .filter(isActive)
     .reduce((s, v) => s + Number(v.guarantee_usdc), 0);
   // Lifetime sum of payouts the subscriber has received from breaches.
-  // Only counts subscriber-favourable resolutions; the legacy direct-settle
-  // path (no dispute) is also subscriber-favourable.
+  // Only `resolved_subscriber` shifts USDC to the subscriber — clean
+  // settles and provider-favourable disputes leave nothing for them.
+  // Pool vaults pay the per-vault `claim_amount_usdc`; per-vault listings
+  // pay the full guarantee. The subscription fee always stays with the
+  // provider, regardless of outcome.
   const lifetimePaidOut = vaults
     .filter(
       (v) =>
-        v.status === "disbursed" &&
-        (v.dispute_status === "resolved_subscriber" || v.dispute_status === "none"),
+        v.status === "disbursed" && v.dispute_status === "resolved_subscriber",
     )
     .reduce(
-      (s, v) => s + Number(v.guarantee_usdc) + Number(v.subscription_fee_usdc),
+      (s, v) => s + Number(v.claim_amount_usdc ?? v.guarantee_usdc ?? 0),
       0,
     );
 
@@ -148,7 +150,7 @@ export default function SubscriberDashboardPage() {
         ) : (
           <Panel label={`coverage · ${vaults.length}`}>
             <div
-              className="grid grid-cols-[1fr_minmax(8rem,_auto)_minmax(8rem,_auto)_minmax(8rem,_auto)]
+              className="hidden md:grid grid-cols-[1fr_minmax(8rem,_auto)_minmax(8rem,_auto)_minmax(8rem,_auto)]
                          items-stretch divide-x divide-[var(--rule-0)]
                          bg-[var(--ink-2)] border-b border-[var(--rule-0)]"
             >
@@ -178,10 +180,10 @@ function VaultRow({ vault }: { vault: Vault }) {
       className="group block border-t border-[var(--rule-0)] hover:bg-[var(--ink-2)] transition-colors"
     >
       <div
-        className="grid grid-cols-[1fr_minmax(8rem,_auto)_minmax(8rem,_auto)_minmax(8rem,_auto)]
-                   items-stretch divide-x divide-[var(--rule-0)]"
+        className="grid grid-cols-3 md:grid-cols-[1fr_minmax(8rem,_auto)_minmax(8rem,_auto)_minmax(8rem,_auto)]
+                   items-stretch md:divide-x divide-y md:divide-y-0 divide-[var(--rule-0)]"
       >
-        <div className="flex flex-col gap-1 min-w-0 px-4 py-4 justify-center">
+        <div className="col-span-3 md:col-span-1 flex flex-col gap-1 min-w-0 px-4 py-4 justify-center">
           <span className="label">
             provider {vault.provider_wallet.slice(0, 6)}…
             {vault.provider_wallet.slice(-4)}
@@ -219,7 +221,7 @@ function Cell({
   accent?: boolean;
 }) {
   return (
-    <div className="flex flex-col items-end gap-1 px-4 py-4 justify-center">
+    <div className="flex flex-col items-start md:items-end gap-1 px-4 py-3 md:py-4 justify-center">
       <span className="label">{label}</span>
       <span
         className="numeric text-sm"

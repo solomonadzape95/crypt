@@ -34,16 +34,17 @@ export function AppHeader({ crumbs = [], address, rightLinks = [] }: Props) {
             <Wordmark />
           </Link>
 
-          {/* Crumb cells */}
+          {/* Crumb cells. On mobile only the LAST crumb shows so the row
+              doesn't overflow next to the wallet menu; the parent crumbs
+              are still tappable from the floating nav. */}
           <div className="flex items-stretch min-w-0">
             {crumbs.map((c, i) => {
               const last = i === crumbs.length - 1;
               return (
                 <div
                   key={i}
-                  className={`flex items-center px-4 border-r border-[var(--rule-0)] min-w-0 ${
-                    last ? "" : ""
-                  }`}
+                  className={`${last ? "flex" : "hidden md:flex"}
+                              items-center px-3 md:px-4 border-r border-[var(--rule-0)] min-w-0`}
                 >
                   {c.href ? (
                     <Link

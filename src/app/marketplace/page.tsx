@@ -72,7 +72,7 @@ export default function MarketplacePage() {
         ) : (
           <Panel label={`offers · ${listings.length}`}>
             <div
-              className="grid grid-cols-[1fr_minmax(8rem,_auto)_minmax(8rem,_auto)_minmax(5rem,_auto)]
+              className="hidden md:grid grid-cols-[1fr_minmax(8rem,_auto)_minmax(8rem,_auto)_minmax(5rem,_auto)]
                          items-stretch divide-x divide-[var(--rule-0)]
                          bg-[var(--ink-2)] border-b border-[var(--rule-0)]"
             >

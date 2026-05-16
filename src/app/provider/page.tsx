@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { getBrowserClient } from "@/lib/supabase";
 import { AppHeader } from "@/components/AppHeader";
 import { Panel } from "@/components/Panel";
+import { DemoHeartbeatPanel } from "@/components/DemoHeartbeatPanel";
 import type { Listing } from "@/lib/types";
 
 type ListingWithCount = Listing & { subscriberCount: number };
@@ -81,6 +82,8 @@ export default function ProviderPage() {
           </Link>
         </div>
 
+        <DemoHeartbeatPanel />
+
         {loading ? (
           <Panel label="offers · loading">
             <p className="label px-4 py-6 text-[var(--fg-3)]">loading…</p>
@@ -96,8 +99,10 @@ export default function ProviderPage() {
           </Panel>
         ) : (
           <Panel label={`offers · ${listings.length}`}>
+            {/* Column headers only make sense at md+; mobile rows stack
+                their own labels via the Cell component. */}
             <div
-              className="grid grid-cols-[1fr_minmax(8rem,_auto)_minmax(8rem,_auto)_minmax(7rem,_auto)]
+              className="hidden md:grid grid-cols-[1fr_minmax(8rem,_auto)_minmax(8rem,_auto)_minmax(7rem,_auto)]
                          items-stretch divide-x divide-[var(--rule-0)]
                          bg-[var(--ink-2)] border-b border-[var(--rule-0)]"
             >
@@ -126,9 +131,9 @@ function ListingRow({ listing }: { listing: ListingWithCount }) {
       href={`/provider/listings/${listing.id}`}
       className="group block border-t border-[var(--rule-0)] hover:bg-[var(--ink-2)] transition-colors"
     >
-      <div className="grid grid-cols-[1fr_minmax(8rem,_auto)_minmax(8rem,_auto)_minmax(7rem,_auto)]
-                      items-stretch divide-x divide-[var(--rule-0)]">
-        <div className="flex flex-col gap-1 min-w-0 px-4 py-4 justify-center">
+      <div className="grid grid-cols-3 md:grid-cols-[1fr_minmax(8rem,_auto)_minmax(8rem,_auto)_minmax(7rem,_auto)]
+                      items-stretch md:divide-x divide-y md:divide-y-0 divide-[var(--rule-0)]">
+        <div className="col-span-3 md:col-span-1 flex flex-col gap-1 min-w-0 px-4 py-4 justify-center">
           <span className="label">
             {listing.active ? (
               <span style={{ color: "var(--signal-ok)" }}>● live</span>
@@ -163,7 +168,7 @@ function Cell({
   accent?: boolean;
 }) {
   return (
-    <div className="flex flex-col items-end gap-1 px-4 py-4 justify-center">
+    <div className="flex flex-col items-start md:items-end gap-1 px-4 py-3 md:py-4 justify-center">
       <span className="label">{label}</span>
       <span
         className="numeric text-sm"

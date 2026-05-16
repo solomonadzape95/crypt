@@ -70,7 +70,11 @@ export type SettleResult = {
 /**
  * Outcome routing for the per-vault two-sided escrow:
  *   clean  → guarantee → provider,    subscription → provider.
- *   breach → guarantee → subscriber,  subscription → subscriber.
+ *   breach → guarantee → subscriber,  subscription → provider.
+ *
+ * The subscription fee always goes to the provider — they delivered the
+ * service window even if uptime broke at the end. Only the guarantee shifts
+ * sides on breach; that's the actual coverage payout.
  *
  * Both flows use the dispute path (dispute-escrow → resolve-dispute) since
  * resolve-dispute is the only TW call that accepts arbitrary receiver routing.
@@ -158,7 +162,9 @@ async function settlePerVault(
   const subscriberTarget = vault.subscriber_payout_target ?? vault.subscriber_wallet;
 
   const guaranteeReceiver = outcome === "breach" ? subscriberTarget : providerTarget;
-  const subscriptionReceiver = outcome === "breach" ? subscriberTarget : providerTarget;
+  // Subscription fee always lands with the provider — they served the
+  // window. Breach only shifts the guarantee.
+  const subscriptionReceiver = providerTarget;
 
   const guaranteeTxHash = await releaseOne({
     contractId: vault.guarantee_escrow_contract_id,
@@ -199,7 +205,8 @@ async function settlePoolClean(vault: SettleVault): Promise<SettleResult> {
 
 /**
  * Pool breach: the dramatic one.
- *   1. Refund subscriber's own fee from their subscription escrow.
+ *   1. Release subscriber's fee escrow → provider (they served the window;
+ *      the breach payout comes from the pool, not the fee).
  *   2. Drain the listing's pool contract: claim → subscriber, remainder →
  *      platform wallet (briefly).
  *   3. Re-deploy a fresh pool escrow with the remainder and update
@@ -223,6 +230,7 @@ async function settlePoolBreach(vault: SettleVault): Promise<SettleResult> {
 
   const platform = getPlatformPublic();
   const resolver = getResolverPublic();
+  const providerTarget = vault.provider_payout_target ?? vault.provider_wallet;
   const subscriberTarget = vault.subscriber_payout_target ?? vault.subscriber_wallet;
 
   // Look up the CURRENT pool contract for the listing — earlier breaches may
@@ -241,10 +249,11 @@ async function settlePoolBreach(vault: SettleVault): Promise<SettleResult> {
     throw new Error(`pool vault breach: listing.pool_contract_id is null`);
   }
 
-  // 1) Refund subscriber's own fee.
+  // 1) Release the subscriber's fee to the provider — they served the
+  //    coverage window, the breach payout comes from the pool below.
   const subscriptionTxHash = await releaseOne({
     contractId: vault.subscription_escrow_contract_id,
-    receiver: subscriberTarget,
+    receiver: providerTarget,
     platform,
     resolver,
   });

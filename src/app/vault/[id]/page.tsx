@@ -527,27 +527,62 @@ function PayoutCard({
   explorer: string;
   isSubscriber: boolean;
 }) {
-  const total = Number(vault.guarantee_usdc) + Number(vault.subscription_fee_usdc);
-  const dest = vault.subscriber_payout_target ?? vault.subscriber_wallet;
-  const subscriptionTxLabel = isSubscriber ? "your deposit tx" : "subscriber deposit tx";
+  // Breach = subscriber got the guarantee/claim; provider kept the fee.
+  // Clean / unset = provider got everything.
+  const breach = vault.dispute_status === "resolved_subscriber";
+  const guaranteeAmt = Number(
+    breach && vault.claim_amount_usdc != null
+      ? vault.claim_amount_usdc
+      : vault.guarantee_usdc,
+  );
+  const feeAmt = Number(vault.subscription_fee_usdc);
+  const subscriberAmt = breach ? guaranteeAmt : 0;
+  const providerAmt = breach ? feeAmt : guaranteeAmt + feeAmt;
+  const headlineAmt = breach ? subscriberAmt : providerAmt;
+  const headlineDest = breach
+    ? vault.subscriber_payout_target ?? vault.subscriber_wallet
+    : vault.provider_payout_target ?? vault.provider_wallet;
+  const headlineLabel = breach
+    ? isSubscriber
+      ? "paid to you"
+      : "paid to subscriber"
+    : "paid to provider";
+  const subscriptionTxLabel = breach
+    ? isSubscriber
+      ? "your fee → provider"
+      : "subscriber fee → provider"
+    : isSubscriber
+      ? "your fee → provider"
+      : "subscriber fee → you";
   return (
-    <Panel label="paid out" trailing="settled on Stellar">
+    <Panel
+      label="paid out"
+      trailing={breach ? "breach · settled on Stellar" : "clean · settled on Stellar"}
+    >
       <div className="px-4 py-5 flex flex-col gap-4">
         <div className="flex items-end justify-between">
           <span
             className="numeric font-medium tracking-tight"
             style={{ fontSize: "2.5rem", color: "var(--signal-ok)", lineHeight: 1 }}
           >
-            {total.toFixed(2)}
+            {headlineAmt.toFixed(2)}
           </span>
           <span className="label text-[var(--signal-ok)]">USDC sent</span>
         </div>
         <div className="border-t border-[var(--rule-0)] pt-3 flex flex-col gap-2">
-          <span className="label">paid to</span>
+          <span className="label">{headlineLabel}</span>
           <span className="numeric text-[12px] text-[var(--fg-0)] break-all">
-            {dest}
+            {headlineDest}
           </span>
         </div>
+        {breach && (
+          <div className="border-t border-[var(--rule-0)] pt-3 flex items-baseline justify-between gap-3">
+            <span className="label">provider kept the fee</span>
+            <span className="numeric text-[13px] text-[var(--fg-1)]">
+              {feeAmt.toFixed(2)} USDC
+            </span>
+          </div>
+        )}
         <div className="flex flex-col gap-1 pt-2 border-t border-[var(--rule-0)]">
           {vault.guarantee_payout_tx_hash && (
             <a
@@ -556,7 +591,7 @@ function PayoutCard({
               rel="noopener noreferrer"
               className="numeric text-[11px] text-[var(--amber)] underline break-all"
             >
-              provider deposit tx {vault.guarantee_payout_tx_hash.slice(0, 10)}…
+              guarantee tx {vault.guarantee_payout_tx_hash.slice(0, 10)}…
             </a>
           )}
           {vault.subscription_payout_tx_hash && (

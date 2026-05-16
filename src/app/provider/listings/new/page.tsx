@@ -161,6 +161,20 @@ export default function NewListingPage() {
                 placeholder="https://api.yourservice.com/health"
                 className="numeric"
               />
+              <button
+                type="button"
+                onClick={() =>
+                  setApiUrl(
+                    typeof window === "undefined"
+                      ? "/api/demo/heartbeat"
+                      : `${window.location.origin}/api/demo/heartbeat`,
+                  )
+                }
+                className="self-start text-[11px] text-[var(--amber)] hover:underline
+                           uppercase tracking-[0.12em] mt-1"
+              >
+                use demo heartbeat →
+              </button>
             </Field>
             <Field
               label="body must match (regex)"
