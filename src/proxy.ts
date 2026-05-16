@@ -3,8 +3,13 @@ import { readSessionFromCookieString, SESSION_COOKIE_NAME } from "@/lib/wallet-s
 
 const PROTECTED = ["/vaults", "/vault", "/provider", "/marketplace", "/listing"];
 
+// Public sub-routes carved out of the protected prefixes. Proof pages are
+// shareable on purpose — they're the audit-trail receipt.
+const PUBLIC_OVERRIDES = [/^\/vault\/[^/]+\/proof$/];
+
 export async function proxy(req: NextRequest) {
   const path = req.nextUrl.pathname;
+  if (PUBLIC_OVERRIDES.some((re) => re.test(path))) return NextResponse.next();
   const needsAuth = PROTECTED.some((p) => path === p || path.startsWith(`${p}/`));
   if (!needsAuth) return NextResponse.next();
 

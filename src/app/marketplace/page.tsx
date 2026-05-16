@@ -43,7 +43,7 @@ export default function MarketplacePage() {
         address={address}
         rightLinks={[
           { href: "/vaults", label: "my subs" },
-          { href: "/provider", label: "provider →" },
+          { href: "/provider", label: "provider" },
         ]}
       />
 
@@ -70,10 +70,17 @@ export default function MarketplacePage() {
         ) : listings.length === 0 ? (
           <Empty />
         ) : (
-          <Panel
-            label={`offers · ${listings.length}`}
-            trailing="provider · their deposit · your deposit · check every"
-          >
+          <Panel label={`offers · ${listings.length}`}>
+            <div
+              className="grid grid-cols-[1fr_minmax(8rem,_auto)_minmax(8rem,_auto)_minmax(5rem,_auto)]
+                         items-stretch divide-x divide-[var(--rule-0)]
+                         bg-[var(--ink-2)] border-b border-[var(--rule-0)]"
+            >
+              <div className="px-4 py-2 label">provider · title</div>
+              <div className="px-4 py-2 label text-right">their deposit</div>
+              <div className="px-4 py-2 label text-right">your deposit</div>
+              <div className="px-4 py-2 label text-right">check every</div>
+            </div>
             <ul className="flex flex-col">
               {listings.map((l) => (
                 <li key={l.id}>
@@ -105,7 +112,7 @@ function Empty() {
           href="/provider/listings/new"
           className="label text-[var(--amber)] hover:underline w-fit"
         >
-          publish the first one →
+          publish the first one
         </Link>
       </div>
     </Panel>

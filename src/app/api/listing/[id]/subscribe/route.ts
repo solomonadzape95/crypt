@@ -7,7 +7,12 @@ import { Keypair } from "@stellar/stellar-sdk";
 
 type Body = {
   subscriberPayoutTarget?: string;
+  periodDays?: number;
 };
+
+type ListingPeriodOption = { days: number; multiplier: number };
+
+const FUNDING_TTL_MS = 24 * 60 * 60_000; // 24h to fund both sides — cron sweeps after
 
 function isValidStellarAddress(addr: string): boolean {
   try {
@@ -100,7 +105,62 @@ export async function POST(
     return NextResponse.json({ error: "listing is not active" }, { status: 409 });
   }
 
-  // Snapshot listing terms into the new vault row.
+  const periodOptions = (listing.period_options as ListingPeriodOption[]) ?? [
+    { days: 7, multiplier: 1 },
+  ];
+  const periodDays = body.periodDays ?? periodOptions[0]?.days ?? 7;
+  const chosen = periodOptions.find((o) => o.days === periodDays);
+  if (!chosen) {
+    return NextResponse.json(
+      { error: `period ${periodDays}d not offered by this listing` },
+      { status: 400 }
+    );
+  }
+
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + chosen.days * 24 * 60 * 60_000);
+  const fundingExpiresAt = new Date(now.getTime() + FUNDING_TTL_MS);
+  const subscriptionFee = Number(listing.subscription_fee_usdc) * chosen.multiplier;
+  const isPool = listing.payout_mode === "pool";
+
+  // Pool capacity check — refuse new subs when the unspent pool can't cover
+  // their potential claim.
+  let claimAmount: number | null = null;
+  if (isPool) {
+    if (!listing.pool_contract_id || !listing.pool_funded_at) {
+      return NextResponse.json(
+        { error: "pool is not funded yet — provider must deposit first" },
+        { status: 409 },
+      );
+    }
+    const ratio = Number(listing.coverage_ratio_x ?? 10);
+    claimAmount = subscriptionFee * ratio;
+    const { data: reservedRows } = await svc
+      .from("vaults")
+      .select("claim_amount_usdc")
+      .eq("listing_id", listing.id)
+      .in("status", ["funding", "locked", "under_threat"])
+      .in("dispute_status", ["none", "pending", "in_review"]);
+    const reserved = (reservedRows ?? []).reduce(
+      (s, r) => s + Number(r.claim_amount_usdc ?? 0),
+      0,
+    );
+    const available = Number(listing.pool_amount_usdc ?? 0) - reserved;
+    if (available < claimAmount) {
+      return NextResponse.json(
+        {
+          error: `pool oversubscribed — only ${available.toFixed(2)} USDC of capacity left, this plan claims ${claimAmount.toFixed(2)}`,
+        },
+        { status: 409 },
+      );
+    }
+  }
+
+  // Snapshot listing terms into the new vault row. For pool vaults we point
+  // guarantee_escrow_contract_id at the shared pool so existing UI links keep
+  // working, and pre-fill guarantee_funded_at so the funding state machine
+  // doesn't wait for a per-vault provider deposit (the pool was funded once
+  // by the provider, before any subscribers existed).
   const { data: vault, error: insErr } = await svc
     .from("vaults")
     .insert({
@@ -110,13 +170,21 @@ export async function POST(
       subscriber_wallet: auth.address,
       subscriber_payout_target: subscriberPayoutTarget,
       api_url: listing.api_url,
-      guarantee_usdc: listing.guarantee_usdc,
-      subscription_fee_usdc: listing.subscription_fee_usdc,
+      guarantee_usdc: isPool ? claimAmount : listing.guarantee_usdc,
+      subscription_fee_usdc: subscriptionFee,
       oracle_period_sec: listing.oracle_period_sec,
       failure_threshold: listing.failure_threshold,
       sla_target_pct: listing.sla_target_pct,
-      boundless_url: listing.boundless_url,
+      expect_body_regex: listing.expect_body_regex,
+      period_days: chosen.days,
+      expires_at: expiresAt.toISOString(),
+      funding_expires_at: fundingExpiresAt.toISOString(),
       status: "funding",
+      // Pool-only fields:
+      claim_amount_usdc: claimAmount,
+      pool_contract_snapshot: isPool ? listing.pool_contract_id : null,
+      guarantee_escrow_contract_id: isPool ? listing.pool_contract_id : null,
+      guarantee_funded_at: isPool ? listing.pool_funded_at : null,
     })
     .select("id")
     .single();
@@ -135,23 +203,26 @@ export async function POST(
     const msg = e instanceof Error ? e.message : "resolver keypair missing";
     return NextResponse.json({ error: msg, vaultId: vault.id }, { status: 500 });
   }
-  let guarantee: { contractId: string; deployTxHash: string | null };
+
+  let guarantee: { contractId: string; deployTxHash: string | null } | null = null;
   let subscription: { contractId: string; deployTxHash: string | null };
   try {
-    guarantee = await deployEscrow({
-      vaultId: vault.id,
-      side: "guarantee",
-      platform,
-      resolver,
-      amount: Number(listing.guarantee_usdc),
-      apiUrl: listing.api_url,
-    });
+    if (!isPool) {
+      guarantee = await deployEscrow({
+        vaultId: vault.id,
+        side: "guarantee",
+        platform,
+        resolver,
+        amount: Number(listing.guarantee_usdc),
+        apiUrl: listing.api_url,
+      });
+    }
     subscription = await deployEscrow({
       vaultId: vault.id,
       side: "subscription",
       platform,
       resolver,
-      amount: Number(listing.subscription_fee_usdc),
+      amount: subscriptionFee,
       apiUrl: listing.api_url,
     });
   } catch (e) {
@@ -159,20 +230,24 @@ export async function POST(
     return NextResponse.json({ error: msg, vaultId: vault.id }, { status: 500 });
   }
 
-  await svc
-    .from("vaults")
-    .update({
-      guarantee_escrow_contract_id: guarantee.contractId,
-      subscription_escrow_contract_id: subscription.contractId,
-    })
-    .eq("id", vault.id);
+  const update: Record<string, unknown> = {
+    subscription_escrow_contract_id: subscription.contractId,
+  };
+  if (!isPool && guarantee) {
+    update.guarantee_escrow_contract_id = guarantee.contractId;
+  }
+  await svc.from("vaults").update(update).eq("id", vault.id);
 
   return NextResponse.json({
     vaultId: vault.id,
-    guarantee: {
-      contractId: guarantee.contractId,
-      deployTxHash: guarantee.deployTxHash,
-    },
+    payoutMode: listing.payout_mode,
+    claimAmount,
+    guarantee: guarantee
+      ? {
+          contractId: guarantee.contractId,
+          deployTxHash: guarantee.deployTxHash,
+        }
+      : { contractId: listing.pool_contract_id, deployTxHash: null },
     subscription: {
       contractId: subscription.contractId,
       deployTxHash: subscription.deployTxHash,

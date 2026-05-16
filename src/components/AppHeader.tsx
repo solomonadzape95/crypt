@@ -14,7 +14,7 @@ type Props = {
 
 export function AppHeader({ crumbs = [], address, rightLinks = [] }: Props) {
   return (
-    <header className="relative border-b border-[var(--rule-0)] bg-[var(--ink-1)]">
+    <header className="relative border-b border-[var(--rule-0)] bg-[var(--ink-0)]">
       {/* Top status hairline — amber, a single px, the operator beacon. */}
       <span
         className="absolute top-0 left-0 h-px"

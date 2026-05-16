@@ -5,7 +5,7 @@ import { Keypair, hash } from "@stellar/stellar-sdk";
 const SESSION_COOKIE = "crypt_session";
 const CHALLENGE_COOKIE = "crypt_challenge";
 const SESSION_DAYS = 7;
-const CHALLENGE_MINUTES = 5;
+const CHALLENGE_SECONDS = 90;
 
 function secretBytes(): Uint8Array {
   const s = process.env.CRYPT_SESSION_SECRET;
@@ -30,18 +30,25 @@ export function challengeMessage(address: string, nonce: string): string {
   ].join("\n");
 }
 
-export async function issueChallenge(address: string): Promise<Challenge> {
+export async function issueChallenge(
+  address: string,
+  bindIp: string | null,
+): Promise<Challenge> {
   const nonce = crypto.randomUUID();
-  const jwt = await new SignJWT({ addr: address.toUpperCase(), nonce })
+  const jwt = await new SignJWT({
+    addr: address.toUpperCase(),
+    nonce,
+    ip: bindIp ?? "",
+  })
     .setProtectedHeader({ alg: "HS256" })
-    .setExpirationTime(`${CHALLENGE_MINUTES}m`)
+    .setExpirationTime(`${CHALLENGE_SECONDS}s`)
     .sign(secretBytes());
   const store = await cookies();
   store.set(CHALLENGE_COOKIE, jwt, {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
-    maxAge: CHALLENGE_MINUTES * 60,
+    maxAge: CHALLENGE_SECONDS,
     secure: process.env.NODE_ENV === "production",
   });
   return { nonce, message: challengeMessage(address, nonce) };
@@ -49,6 +56,7 @@ export async function issueChallenge(address: string): Promise<Challenge> {
 
 export async function consumeChallenge(
   address: string,
+  presentedIp: string | null,
 ): Promise<{ nonce: string; message: string } | null> {
   const store = await cookies();
   const jwt = store.get(CHALLENGE_COOKIE)?.value;
@@ -58,6 +66,12 @@ export async function consumeChallenge(
     if (typeof payload.addr !== "string" || typeof payload.nonce !== "string")
       return null;
     if (payload.addr !== address.toUpperCase()) return null;
+    // IP binding: tolerate empty (challenge issued without an IP) but if both
+    // sides have one and they differ, refuse. Edge IPs are stable per CDN POP
+    // for any given client; mid-flight hops are rare enough to surface as a
+    // "request a new challenge" prompt rather than silently allow a replay.
+    const boundIp = typeof payload.ip === "string" ? payload.ip : "";
+    if (boundIp && presentedIp && boundIp !== presentedIp) return null;
     // Single-use
     store.delete(CHALLENGE_COOKIE);
     return {

@@ -120,7 +120,7 @@ function Pillar({
       <div className="flex flex-col gap-1 pt-3 border-t border-[var(--rule-0)] mt-2">
         <Line label="wallet" value={address} />
         {payoutTarget && payoutTarget !== address && (
-          <Line label="paid to →" value={payoutTarget} accent />
+          <Line label="paid to" value={payoutTarget} accent />
         )}
         {funded && fundedAt && (
           <Line label="locked at" value={new Date(fundedAt).toLocaleTimeString()} />

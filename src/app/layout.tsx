@@ -1,15 +1,24 @@
 import type { Metadata } from "next";
-import { JetBrains_Mono } from "next/font/google";
+import { EB_Garamond, DM_Mono } from "next/font/google";
 import "./globals.css";
 
-// One mono family across the whole app. JetBrains Mono trades the typewriter
-// stiffness of Azeret/Nova for a humanist, much-more-readable hand at every
-// size — same operator-console vibe, fewer "is that a 0 or O" moments.
-const jb = JetBrains_Mono({
-  variable: "--font-jb",
+// EB Garamond — the main face. Classical serif, body + display. Reads
+// editorial / contract / financial-document.
+const eb = EB_Garamond({
+  variable: "--font-eb",
   subsets: ["latin"],
   display: "swap",
-  weight: ["300", "400", "500", "600", "700"],
+  weight: ["400", "500", "600", "700"],
+});
+
+// DM Mono — the secondary face. Used for labels, numerics, addresses, chart
+// axes, the wordmark — anything where character-cell alignment carries
+// meaning. Ships at 300/400/500.
+const dm = DM_Mono({
+  variable: "--font-dm",
+  subsets: ["latin"],
+  display: "swap",
+  weight: ["400", "500"],
 });
 
 export const metadata: Metadata = {
@@ -26,7 +35,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${jb.variable} h-full antialiased`}>
+    <html lang="en" className={`${eb.variable} ${dm.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );

@@ -3,20 +3,51 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Panel } from "./Panel";
+import type { PeriodOption } from "@/lib/types";
 
 type Props = {
   listingId: string;
   signedInWallet: string | null;
+  baseFeeUsdc: number;
+  periodOptions: PeriodOption[];
+  /**
+   * Provider-side payout shape. For per-vault listings, the subscriber gets
+   * the provider's deposit + their own fee back. For pool listings the
+   * subscriber's claim scales as fee × coverageRatioX.
+   */
+  payoutMode: "per_vault" | "pool";
+  guaranteeUsdc: number;
+  coverageRatioX: number | null;
   onSubscribed: (vaultId: string) => void;
 };
 
 type Step = "review" | "deploying" | "done" | "error";
 
-export function SubscribeDialog({ listingId, signedInWallet, onSubscribed }: Props) {
+export function SubscribeDialog({
+  listingId,
+  signedInWallet,
+  baseFeeUsdc,
+  periodOptions,
+  payoutMode,
+  guaranteeUsdc,
+  coverageRatioX,
+  onSubscribed,
+}: Props) {
+  const defaultOption = periodOptions[0] ?? { days: 7, multiplier: 1 };
+  const [periodDays, setPeriodDays] = useState<number>(defaultOption.days);
   const [useSignedIn, setUseSignedIn] = useState(true);
   const [payoutTarget, setPayoutTarget] = useState("");
   const [step, setStep] = useState<Step>("review");
   const [err, setErr] = useState<string | null>(null);
+
+  const selected = periodOptions.find((o) => o.days === periodDays) ?? defaultOption;
+  const effectiveFee = baseFeeUsdc * selected.multiplier;
+  // Breach payout = provider claim + your own fee back.
+  const claimAmount =
+    payoutMode === "pool"
+      ? effectiveFee * (coverageRatioX ?? 10)
+      : guaranteeUsdc;
+  const breachPayout = claimAmount + effectiveFee;
 
   async function onConfirm() {
     setErr(null);
@@ -26,6 +57,7 @@ export function SubscribeDialog({ listingId, signedInWallet, onSubscribed }: Pro
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          periodDays,
           subscriberPayoutTarget: useSignedIn ? undefined : payoutTarget.trim(),
         }),
       });
@@ -47,6 +79,55 @@ export function SubscribeDialog({ listingId, signedInWallet, onSubscribed }: Pro
             Subscribing locks two deposits on Stellar — one from the provider, one
             from you. We&apos;ll prompt your wallet for yours on the next screen.
           </p>
+
+          {/* Coverage period selector */}
+          <div className="flex flex-col gap-2">
+            <span className="label">coverage period</span>
+            <div className="grid grid-cols-3 gap-2">
+              {periodOptions.map((opt) => {
+                const active = opt.days === periodDays;
+                const fee = baseFeeUsdc * opt.multiplier;
+                return (
+                  <button
+                    key={opt.days}
+                    type="button"
+                    onClick={() => setPeriodDays(opt.days)}
+                    className="h-16 border text-sm transition-colors numeric flex flex-col items-center justify-center gap-1"
+                    style={{
+                      borderColor: active ? "var(--amber)" : "var(--rule-0)",
+                      background: active ? "var(--amber-bg)" : "var(--ink-0)",
+                      color: active ? "var(--amber)" : "var(--fg-1)",
+                    }}
+                  >
+                    <span className="text-[13px]">{periodLabel(opt.days)}</span>
+                    <span className="text-[11px] text-[var(--fg-3)]">
+                      {fee.toFixed(2)} USDC
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <span className="label text-[var(--fg-3)]">
+              your deposit · {effectiveFee.toFixed(2)} USDC for {selected.days} days
+            </span>
+          </div>
+
+          {/* Breach payout estimate */}
+          <div className="border border-[var(--rule-0)] bg-[var(--ink-0)] px-4 py-3 flex items-baseline justify-between">
+            <span className="label">your payout if API fails</span>
+            <span
+              className="numeric font-medium"
+              style={{ color: "var(--amber)", fontSize: "1.4rem", lineHeight: 1 }}
+            >
+              {breachPayout.toFixed(2)} USDC
+            </span>
+          </div>
+          {payoutMode === "pool" && (
+            <span className="label text-[var(--fg-3)] -mt-3">
+              {effectiveFee.toFixed(2)} fee × {coverageRatioX ?? 10}× coverage
+              + your {effectiveFee.toFixed(2)} deposit refunded
+            </span>
+          )}
 
           <div className="flex flex-col gap-2">
             <span className="label">payout wallet</span>
@@ -72,7 +153,7 @@ export function SubscribeDialog({ listingId, signedInWallet, onSubscribed }: Pro
                 value={payoutTarget}
                 onChange={(e) => setPayoutTarget(e.target.value.toUpperCase())}
                 placeholder="G..."
-                className="h-10 bg-[var(--ink-0)] border border-[var(--rule-0)] px-3 text-sm
+                className="h-10 w-full bg-[var(--ink-0)] border border-[var(--rule-0)] px-3 text-sm
                            focus:outline-none focus:border-[var(--amber)] numeric"
               />
             )}
@@ -89,7 +170,7 @@ export function SubscribeDialog({ listingId, signedInWallet, onSubscribed }: Pro
                          bg-[var(--amber)] text-[var(--ink-0)] hover:bg-transparent
                          hover:text-[var(--amber)] transition-colors uppercase tracking-[0.12em]"
             >
-              create coverage →
+              create coverage
             </button>
           )}
           {step === "deploying" && (
@@ -126,4 +207,10 @@ export function SubscribeDialog({ listingId, signedInWallet, onSubscribed }: Pro
       </Panel>
     </motion.div>
   );
+}
+
+function periodLabel(days: number): string {
+  if (days >= 30 && days % 30 === 0) return `${days / 30} month${days === 30 ? "" : "s"}`;
+  if (days % 7 === 0) return `${days / 7} week${days === 7 ? "" : "s"}`;
+  return `${days} days`;
 }

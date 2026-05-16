@@ -4,22 +4,39 @@ import { use, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AppHeader } from "@/components/AppHeader";
-import { BoundlessPanel } from "@/components/BoundlessPanel";
 import { CountdownTimer } from "@/components/CountdownTimer";
+import { DisputePanel } from "@/components/DisputePanel";
 import { FundsAnimation } from "@/components/FundsAnimation";
 import { HeartbeatMonitor } from "@/components/HeartbeatMonitor";
 import { IncidentLog } from "@/components/IncidentLog";
 import { KillSwitch } from "@/components/KillSwitch";
 import { Panel, MetricRow, LabeledRule } from "@/components/Panel";
+import { SettlingPanel } from "@/components/SettlingPanel";
 import { SLATermsCard } from "@/components/SLATermsCard";
 import { StatusBadge } from "@/components/StatusBadge";
 import { TwoSidedVault } from "@/components/TwoSidedVault";
 import { VaultFundDialog } from "@/components/VaultFundDialog";
+import { getBrowserClient } from "@/lib/supabase";
 import type { CheckRow, EscrowSide, Vault } from "@/lib/types";
+import { oraclePaused, vaultUiStatus } from "@/lib/vault-state";
+import { timeUntil, periodDaysLabel } from "@/lib/time";
 
 type Params = { id: string };
 
-const REFRESH_MS = 4_000;
+/**
+ * Merge two check lists, dedup by id, keep newest 50 by timestamp.
+ * Used by both the realtime INSERT handler and the manual refresh so a
+ * stale-snapshot refresh can't clobber a newer realtime row (and vice
+ * versa).
+ */
+function mergeChecks(prev: CheckRow[], incoming: CheckRow[]): CheckRow[] {
+  const map = new Map<number, CheckRow>();
+  for (const r of prev) map.set(r.id, r);
+  for (const r of incoming) map.set(r.id, r);
+  return Array.from(map.values())
+    .sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
+    .slice(0, 50);
+}
 
 export default function VaultPage(props: { params: Promise<Params> }) {
   const { id } = use(props.params);
@@ -29,6 +46,8 @@ export default function VaultPage(props: { params: Promise<Params> }) {
   const [loading, setLoading] = useState(true);
   const [me, setMe] = useState<string | null>(null);
   const [animationKey, setAnimationKey] = useState(0);
+  const [lastEventTs, setLastEventTs] = useState<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   const prevStatus = useRef<Vault["status"] | null>(null);
 
   const refresh = useCallback(async () => {
@@ -40,8 +59,11 @@ export default function VaultPage(props: { params: Promise<Params> }) {
     if (!res.ok) return;
     const data = (await res.json()) as { vault: Vault; checks: CheckRow[] };
     setVault(data.vault);
-    setChecks(data.checks);
+    // Merge with any realtime rows already in state — a refresh that lands
+    // after a realtime INSERT would otherwise clobber the newer row.
+    setChecks((cur) => mergeChecks(cur, data.checks));
     setLoading(false);
+    setLastEventTs(Date.now());
     if (
       prevStatus.current &&
       prevStatus.current !== "disbursed" &&
@@ -60,11 +82,69 @@ export default function VaultPage(props: { params: Promise<Params> }) {
     })();
   }, []);
 
+  // Initial paint: one HTTP fetch. After that, Supabase realtime pushes
+  // updates — no setInterval polling. Falls back to nothing if realtime
+  // isn't enabled (caller will see a stale page until next manual refresh,
+  // and a console.warn fires after 30s of no events).
   useEffect(() => {
     void refresh();
-    const t = setInterval(refresh, REFRESH_MS);
+    const supa = getBrowserClient();
+    let gotEvent = false;
+
+    const channel = supa
+      .channel(`vault:${id}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "vaults", filter: `id=eq.${id}` },
+        (payload) => {
+          gotEvent = true;
+          setLastEventTs(Date.now());
+          const next = payload.new as Vault;
+          setVault((cur) => {
+            if (cur && cur.status !== "disbursed" && next.status === "disbursed") {
+              setAnimationKey((k) => k + 1);
+            }
+            prevStatus.current = next.status;
+            return { ...cur, ...next };
+          });
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "checks", filter: `vault_id=eq.${id}` },
+        (payload) => {
+          gotEvent = true;
+          setLastEventTs(Date.now());
+          const row = payload.new as CheckRow;
+          // Dedupe — Supabase realtime can replay events on reconnect, and
+          // the initial refresh + first realtime tick race to insert the
+          // same row. Either case produced duplicate React keys.
+          setChecks((cur) => mergeChecks(cur, [row]));
+        }
+      )
+      .subscribe();
+
+    const warnTimer = setTimeout(() => {
+      if (!gotEvent) {
+        console.warn(
+          `[vault realtime] no events in 30s for vault ${id}. ` +
+            `If updates aren't landing, the vaults/checks tables may not be in the supabase_realtime publication. ` +
+            `Run: ALTER PUBLICATION supabase_realtime ADD TABLE vaults, checks;`
+        );
+      }
+    }, 30_000);
+
+    return () => {
+      clearTimeout(warnTimer);
+      void supa.removeChannel(channel);
+    };
+  }, [id, refresh]);
+
+  // Drive the realtime pill — recompute every 5s without re-fetching.
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 5000);
     return () => clearInterval(t);
-  }, [refresh]);
+  }, []);
 
   // Latest-vault ref so the tick callback can read fresh status without
   // forcing the effect to re-run on every refresh (which would spam ticks).
@@ -109,6 +189,9 @@ export default function VaultPage(props: { params: Promise<Params> }) {
   const isSubscriber = me === vault.subscriber_wallet;
   const guaranteeFunded = !!vault.guarantee_funded_at;
   const subscriptionFunded = !!vault.subscription_funded_at;
+  const uiStatus = vaultUiStatus(vault);
+  const isSettling = uiStatus === "settling";
+  const heartbeatPaused = oraclePaused(vault);
 
   const explorer =
     process.env.NEXT_PUBLIC_STELLAR_EXPLORER ?? "https://stellar.expert/explorer/testnet";
@@ -117,7 +200,7 @@ export default function VaultPage(props: { params: Promise<Params> }) {
     ? vault.listing_id
       ? `/provider/listings/${vault.listing_id}`
       : "/provider"
-    : "/vaults";
+    : "/subscriber";
   const homeLabel = isProvider ? "listing" : "subscriptions";
 
   return (
@@ -133,7 +216,7 @@ export default function VaultPage(props: { params: Promise<Params> }) {
       <section className="max-w-[88rem] mx-auto w-full px-6 md:px-12 py-10 flex flex-col gap-8">
         {/* Status rail — operator console header */}
         <div className="border border-[var(--rule-0)] bg-[var(--ink-1)]">
-          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto_auto] items-stretch divide-y md:divide-y-0 md:divide-x divide-[var(--rule-0)]">
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto_auto_auto] items-stretch divide-y md:divide-y-0 md:divide-x divide-[var(--rule-0)]">
             <RailCell
               label="API being watched"
               value={vault.api_url}
@@ -144,9 +227,17 @@ export default function VaultPage(props: { params: Promise<Params> }) {
               value={`${vault.consecutive_failures} / ${vault.failure_threshold}`}
               accent={vault.consecutive_failures > 0 ? "amber" : undefined}
             />
-            <RailCell label="check every" value={`${vault.oracle_period_sec}s`} />
+            <RailCell
+              label={vault.expires_at ? `coverage · ${periodDaysLabel(vault.period_days)}` : "check every"}
+              value={
+                vault.expires_at && vault.status !== "disbursed" && vault.status !== "expired"
+                  ? timeUntil(vault.expires_at, now)
+                  : `${vault.oracle_period_sec}s`
+              }
+            />
+            <RealtimeCell lastEventTs={lastEventTs} now={now} onRefresh={refresh} />
             <div className="flex items-center justify-end px-4 py-3">
-              <StatusBadge status={vault.status} />
+              <StatusBadge status={uiStatus} />
             </div>
           </div>
         </div>
@@ -159,7 +250,9 @@ export default function VaultPage(props: { params: Promise<Params> }) {
           </Panel>
         )}
 
-        <CountdownTimer vault={vault} />
+        <DisputePanel vault={vault} isProvider={isProvider} onChanged={refresh} />
+
+        {isSettling ? <SettlingPanel /> : <CountdownTimer vault={vault} />}
 
         <SLATermsCard vault={vault} />
 
@@ -175,17 +268,28 @@ export default function VaultPage(props: { params: Promise<Params> }) {
 
         {vault.status === "funding" && (
           <>
-            <LabeledRule label="both deposits needed to start" trailing="lockbox ready" />
+            <LabeledRule
+              label={
+                vault.claim_amount_usdc != null
+                  ? "subscriber deposit to start"
+                  : "both deposits needed to start"
+              }
+              trailing="lockbox ready"
+            />
             <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <FundSlot
-                label={isProvider ? "your deposit" : "provider deposit"}
-                funded={guaranteeFunded}
-                allowed={isProvider}
-                vault={vault}
-                side="guarantee"
-                counterparty={vault.subscriber_wallet}
-                onFunded={refresh}
-              />
+              {vault.claim_amount_usdc != null ? (
+                <PoolReservedSlot vault={vault} />
+              ) : (
+                <FundSlot
+                  label={isProvider ? "your deposit" : "provider deposit"}
+                  funded={guaranteeFunded}
+                  allowed={isProvider}
+                  vault={vault}
+                  side="guarantee"
+                  counterparty={vault.subscriber_wallet}
+                  onFunded={refresh}
+                />
+              )}
               <FundSlot
                 label={isSubscriber ? "your deposit" : "subscriber deposit"}
                 funded={subscriptionFunded}
@@ -202,7 +306,11 @@ export default function VaultPage(props: { params: Promise<Params> }) {
         {vault.status !== "funding" && (
           <section className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6">
             <div className="flex flex-col gap-6">
-              <HeartbeatMonitor checks={checks} />
+              <HeartbeatMonitor
+                checks={checks}
+                paused={heartbeatPaused}
+                settled={vault.status === "disbursed" || vault.status === "expired"}
+              />
               <IncidentLog checks={checks} />
             </div>
 
@@ -228,8 +336,6 @@ export default function VaultPage(props: { params: Promise<Params> }) {
               {vault.status === "disbursed" && (
                 <PayoutCard vault={vault} explorer={explorer} isSubscriber={isSubscriber} />
               )}
-
-              <BoundlessPanel url={vault.boundless_url} />
 
               <OnChainLinks
                 vault={vault}
@@ -266,6 +372,78 @@ function RailCell({
         {value}
       </span>
     </div>
+  );
+}
+
+function RealtimeCell({
+  lastEventTs,
+  now,
+  onRefresh,
+}: {
+  lastEventTs: number | null;
+  now: number;
+  onRefresh: () => void;
+}) {
+  const elapsed = lastEventTs == null ? null : now - lastEventTs;
+  const state =
+    elapsed == null
+      ? "connecting"
+      : elapsed < 30_000
+        ? "live"
+        : elapsed < 60_000
+          ? "stale"
+          : "offline";
+  const colour =
+    state === "live"
+      ? "var(--signal-ok)"
+      : state === "stale"
+        ? "var(--amber)"
+        : state === "offline"
+          ? "var(--signal-fail)"
+          : "var(--fg-3)";
+  const glyph =
+    state === "live" ? "●" : state === "offline" ? "×" : "○";
+  return (
+    <div className="flex flex-col justify-center gap-1 px-4 py-3 min-w-0">
+      <span className="label">realtime</span>
+      <div className="flex items-center gap-2">
+        <span className="numeric text-sm" style={{ color: colour }}>
+          {glyph} {state}
+        </span>
+        {state === "offline" && (
+          <button
+            type="button"
+            onClick={onRefresh}
+            className="label text-[var(--amber)] hover:underline"
+          >
+            refresh
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PoolReservedSlot({ vault }: { vault: Vault }) {
+  const amount = Number(vault.claim_amount_usdc ?? 0);
+  return (
+    <Panel label="provider coverage" trailing="● from shared pool">
+      <div className="px-4 py-6 flex flex-col gap-2">
+        <div className="flex items-end justify-between">
+          <span
+            className="numeric font-medium tracking-tight"
+            style={{ fontSize: "2.25rem", color: "var(--amber)" }}
+          >
+            {amount.toFixed(2)}
+          </span>
+          <span className="label text-[var(--amber)]">USDC · reserved</span>
+        </div>
+        <span className="label text-[var(--fg-3)] normal-case tracking-normal text-[12px] leading-relaxed">
+          Drawn from the provider&apos;s shared pool on breach. You don&apos;t
+          need a separate deposit from the provider for this vault.
+        </span>
+      </div>
+    </Panel>
   );
 }
 
@@ -414,8 +592,8 @@ function OnChainLinks({
   const subscriberLockboxLabel = isSubscriber ? "your lockbox" : "subscriber lockbox";
   const providerFundedLabel = isProvider ? "you funded" : "provider funded";
   const subscriberFundedLabel = isSubscriber ? "you funded" : "subscriber funded";
-  const providerWalletLabel = isProvider ? "you →" : "provider →";
-  const subscriberWalletLabel = isSubscriber ? "you →" : "subscriber →";
+  const providerWalletLabel = isProvider ? "you" : "provider";
+  const subscriberWalletLabel = isSubscriber ? "you" : "subscriber";
   const entries: Array<{ label: string; href: string }> = [];
   if (vault.guarantee_escrow_contract_id) {
     entries.push({
@@ -442,7 +620,18 @@ function OnChainLinks({
     });
   }
   return (
-    <Panel label="on Stellar">
+    <Panel
+      label="on Stellar"
+      trailing={
+        <Link
+          href={`/vault/${vault.id}/proof`}
+          target="_blank"
+          className="label text-[var(--amber)] hover:underline"
+        >
+          public proof
+        </Link>
+      }
+    >
       <div className="flex flex-col">
         <div className="px-4 py-3 border-b border-[var(--rule-0)] flex flex-col gap-2">
           <span className="label">payout wallets</span>

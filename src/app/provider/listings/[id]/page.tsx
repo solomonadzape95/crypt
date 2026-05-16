@@ -6,7 +6,9 @@ import { useRouter } from "next/navigation";
 import { getBrowserClient } from "@/lib/supabase";
 import { AppHeader } from "@/components/AppHeader";
 import { Panel, MetricRow, LabeledRule } from "@/components/Panel";
+import { PoolPanel } from "@/components/PoolPanel";
 import { SLATermsCard } from "@/components/SLATermsCard";
+import { timeUntil, periodDaysLabel } from "@/lib/time";
 import type { Listing, Vault, VaultStatus } from "@/lib/types";
 
 type Params = { id: string };
@@ -62,7 +64,7 @@ export default function ProviderListingPage(props: { params: Promise<Params> }) 
       <main className="flex-1 flex flex-col items-center justify-center gap-3 px-6">
         <span className="label">this isn&apos;t your offer</span>
         <Link href="/provider" className="label text-[var(--amber)] underline">
-          back to your offers →
+          back to your offers
         </Link>
       </main>
     );
@@ -117,17 +119,34 @@ export default function ProviderListingPage(props: { params: Promise<Params> }) 
           </div>
 
           <aside className="flex flex-col gap-6">
-            <Panel label="deposits · per subscriber">
+            {listing.payout_mode === "pool" && (
+              <PoolPanel listing={listing} vaults={vaults} />
+            )}
+            <Panel
+              label={
+                listing.payout_mode === "pool"
+                  ? "subscriber terms"
+                  : "deposits · per subscriber"
+              }
+            >
+              {listing.payout_mode === "per_vault" && (
+                <MetricRow
+                  label="your deposit"
+                  accent="amber"
+                  value={`${Number(listing.guarantee_usdc).toFixed(2)} USDC`}
+                />
+              )}
               <MetricRow
-                label="your deposit"
-                accent="amber"
-                value={`${Number(listing.guarantee_usdc).toFixed(2)} USDC`}
-              />
-              <MetricRow
-                label="their deposit"
+                label="subscriber deposit · per week"
                 accent="amber"
                 value={`${Number(listing.subscription_fee_usdc).toFixed(2)} USDC`}
               />
+              {listing.payout_mode === "pool" && listing.coverage_ratio_x != null && (
+                <MetricRow
+                  label="coverage ratio"
+                  value={`${Number(listing.coverage_ratio_x)}× claim per fee`}
+                />
+              )}
               <MetricRow label="check every" value={`${listing.oracle_period_sec}s`} />
               <MetricRow
                 label="payout after"
@@ -188,26 +207,25 @@ function SubscriberRow({ vault }: { vault: Vault }) {
       href={`/vault/${vault.id}`}
       className="group block border-t border-[var(--rule-0)] first:border-t-0 hover:bg-[var(--ink-2)] transition-colors"
     >
-      <div className="grid grid-cols-[1fr_auto_1.5rem] items-center gap-6 px-4 py-3">
-        <div className="flex flex-col gap-1 min-w-0">
+      <div className="grid grid-cols-[1fr_auto] items-stretch divide-x divide-[var(--rule-0)]">
+        <div className="flex flex-col gap-1 min-w-0 px-4 py-3 justify-center">
           <span className="numeric text-[12px] text-[var(--fg-1)]">
             sub {vault.subscriber_wallet.slice(0, 6)}…{vault.subscriber_wallet.slice(-4)}
           </span>
           <FundedRow vault={vault} />
+          {vault.expires_at && vault.status !== "disbursed" && vault.status !== "expired" && (
+            <span className="label text-[var(--fg-3)]">
+              {periodDaysLabel(vault.period_days)} · {timeUntil(vault.expires_at)}
+            </span>
+          )}
         </div>
         <span
-          className="label"
+          className="label flex items-center px-4 py-3"
           style={{
             color: needsProviderFund ? "var(--amber)" : "var(--fg-2)",
           }}
         >
-          {needsProviderFund ? "fund your deposit →" : "open →"}
-        </span>
-        <span
-          className="text-lg text-[var(--fg-3)] group-hover:text-[var(--amber)] transition-colors"
-          aria-hidden
-        >
-          ›
+          {needsProviderFund ? "fund your deposit" : "open"}
         </span>
       </div>
     </Link>

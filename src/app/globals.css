@@ -1,9 +1,10 @@
 @import "tailwindcss";
 
 /*
- * crypt — operator console design tokens.
- * Monospace throughout. JetBrains Mono is the single family — readable at
- * every size, weight-graded for body/labels/numerics and display headlines.
+ * crypt — design tokens.
+ * Two faces: EB Garamond (main, classical serif) carries body + display +
+ * hero. DM Mono (secondary, geometric monospace) carries labels, numerics,
+ * the wordmark, and anything where character-cell alignment matters.
  * OKLCH for perceptual uniformity. One hot accent.
  */
 
@@ -34,14 +35,18 @@
   --signal-fail: oklch(0.66 0.22 25);
   --signal-wait: oklch(0.78 0.18 75);
 
-  /* Font stacks — JetBrains Mono via next/font, with a hard ui-monospace
-   * fallback so the page never collapses to a serif if next/font flakes. */
+  /* Font stacks. DM Mono is the workhorse — body, labels, numerics, wordmark,
+   * the whole console feel. EB Garamond is reserved for display moments:
+   * .display and .hero-display only. Hard system fallbacks so the page never
+   * collapses if next/font flakes. */
   --stack-body:
-    var(--font-jb, "JetBrains Mono"), ui-monospace, Menlo, Consolas, monospace;
-  --stack-display:
-    var(--font-jb, "JetBrains Mono"), ui-monospace, Menlo, Consolas, monospace;
+    var(--font-dm, "DM Mono"), ui-monospace, Menlo, Consolas, monospace;
   --stack-mono:
-    var(--font-jb, "JetBrains Mono"), ui-monospace, Menlo, Consolas, monospace;
+    var(--font-dm, "DM Mono"), ui-monospace, Menlo, Consolas, monospace;
+  --stack-display:
+    var(--font-eb, "EB Garamond"), Georgia, "Times New Roman", serif;
+  --stack-serif:
+    var(--font-eb, "EB Garamond"), Georgia, "Times New Roman", serif;
 
   /* spacing scale (4pt) */
   --space-2xs: 0.25rem;
@@ -82,7 +87,7 @@ html {
   background: var(--ink-0);
   color: var(--fg-0);
   font-family: var(--stack-body);
-  font-size: 15px;
+  font-size: 18px;
 }
 
 body {
@@ -104,7 +109,7 @@ body {
 /* Label strip — uppercase, tracked, the operator chrome. */
 .label {
   font-family: var(--stack-mono);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   line-height: 1;
   letter-spacing: var(--tracked);
   text-transform: uppercase;
@@ -112,18 +117,30 @@ body {
   font-weight: 500;
 }
 
-/* Display headline — JetBrains Mono at 600 weight. Reads cleanly at scale. */
+/* Display headline — EB Garamond, 500 weight. Reads editorial at scale,
+ * not too heavy. Letter-spacing relaxed vs. mono since the serifs already
+ * shape the rhythm. */
 .display {
   font-family: var(--stack-display);
-  font-weight: 600;
-  letter-spacing: -0.035em;
-  line-height: 0.96;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  line-height: 1.02;
 }
 
-/* Wordmark — Azeret Mono (secondary stack), all-lowercase. */
+/* Hero headline — same stack as .display, slightly lighter weight + tighter
+ * leading for top-of-page brand moments. */
+.hero-display {
+  font-family: var(--stack-serif);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+/* Wordmark — DM Mono, lowercase. The brand mark stays mono so it reads as a
+ * fixed-width tag against the editorial serif body. */
 .wordmark {
   font-family: var(--stack-mono);
-  font-weight: 400;
+  font-weight: 500;
   letter-spacing: -0.02em;
   text-transform: lowercase;
 }
@@ -132,6 +149,24 @@ body {
   background: var(--amber);
   color: var(--ink-0);
 }
+
+/* Pattern entry — used by BarsMarkPattern. Per-tile delay sweeps diagonally. */
+@keyframes crypt-tile-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Hero entry — sparse fade-up for top-of-page display headlines. */
+@keyframes crypt-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.rise {
+  animation: crypt-rise 480ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.rise-delay-1 { animation-delay: 80ms; }
+.rise-delay-2 { animation-delay: 160ms; }
+.rise-delay-3 { animation-delay: 240ms; }
 
 * {
   scrollbar-width: thin;

@@ -28,13 +28,13 @@ const COPY: Record<EscrowSide, {
   guarantee: {
     panel: "fund your deposit",
     unit: "you stake on staying up",
-    cta: "sign deposit →",
+    cta: "sign deposit",
     counter: "paid to subscriber if API fails",
   },
   subscription: {
     panel: "fund your deposit",
     unit: "you pay for this coverage period",
-    cta: "sign deposit →",
+    cta: "sign deposit",
     counter: "kept by provider if API stays up",
   },
 };
@@ -167,7 +167,7 @@ function StepIndicator({ step, txHash }: { step: Step; txHash: string | null }) 
           rel="noopener noreferrer"
           className="label text-[var(--amber)] underline numeric"
         >
-          deposit locked — view on Stellar Expert ↗
+          deposit locked — view on Stellar Expert
         </a>
       )}
     </ol>

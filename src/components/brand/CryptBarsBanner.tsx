@@ -16,7 +16,7 @@ const VIEW_H = 56;
 const MARK_GAP = 6;
 const MARK_DISPLAY = VIEW_H;
 const TEXT_SIZE = 34;
-/** Approximate width of "crypt" at TEXT_SIZE in JetBrains Mono. */
+/** Approximate width of "crypt" at TEXT_SIZE in DM Mono. */
 const TEXT_WIDTH = 110;
 const CONTENT_W = MARK_DISPLAY + MARK_GAP + TEXT_WIDTH;
 const OFFSET_X = (VIEW_W - CONTENT_W) / 2;

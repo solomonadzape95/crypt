@@ -5,7 +5,7 @@ import { Wordmark } from "@/components/AppHeader";
 export default function TrustPage() {
   return (
     <main className="flex-1 flex flex-col">
-      <header className="relative border-b border-[var(--rule-0)] bg-[var(--ink-1)]">
+      <header className="relative border-b border-[var(--rule-0)] bg-[var(--ink-0)]">
         <span
           className="absolute top-0 left-0 h-px"
           style={{
@@ -13,26 +13,36 @@ export default function TrustPage() {
             width: "clamp(40px, 6vw, 88px)",
           }}
         />
-        <div className="max-w-[88rem] mx-auto w-full px-6 md:px-12 h-14 flex items-center justify-between">
-          <Link href="/" className="flex items-baseline gap-3">
-            <Wordmark />
-            <span className="label hidden sm:inline-flex">how it works</span>
-          </Link>
-          <Link
-            href="/vaults"
-            className="label hover:text-[var(--fg-0)] transition-colors"
-          >
-            dashboard →
-          </Link>
+        <div className="max-w-[88rem] mx-auto w-full pl-4 md:pl-6 pr-3 md:pr-6 h-14 flex items-stretch justify-between">
+          <div className="flex items-stretch min-w-0">
+            <Link
+              href="/"
+              className="flex items-center gap-3 pr-5 border-r border-[var(--rule-0)] h-14"
+            >
+              <Wordmark />
+            </Link>
+            <span className="hidden sm:flex items-center px-4 border-r border-[var(--rule-0)] h-14 label text-[var(--fg-0)]">
+              how it works
+            </span>
+          </div>
+          <nav className="flex items-stretch">
+            <Link
+              href="/subscriber"
+              className="flex items-center px-4 border-l border-[var(--rule-0)] h-14
+                         label hover:text-[var(--fg-0)] hover:bg-[var(--ink-2)] transition-colors"
+            >
+              dashboard
+            </Link>
+          </nav>
         </div>
       </header>
 
       <section className="max-w-3xl mx-auto w-full px-6 py-16 flex flex-col gap-12">
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 rise">
           <span className="label">how this stays safe</span>
           <h1
-            className="display"
-            style={{ fontSize: "clamp(2rem, 4vw, 3.25rem)" }}
+            className="hero-display"
+            style={{ fontSize: "clamp(2.25rem, 5vw, 3.75rem)" }}
           >
             how crypt works.
           </h1>
@@ -66,8 +76,8 @@ export default function TrustPage() {
         <LabeledRule label="02 · what the bot does" />
         <Panel label="check cycle">
           <Bullet text="Calls the API at the interval the provider chose (every 15s, 60s, 5min, etc.) with a 5-second timeout." />
-          <Bullet text="If it answers normally → log a healthy check, reset the failure counter." />
-          <Bullet text="If it errors or times out → log a failed check, increment the counter." />
+          <Bullet text="If it answers normally — log a healthy check, reset the failure counter." />
+          <Bullet text="If it errors or times out — log a failed check, increment the counter." />
           <Bullet text="When the counter hits the failure limit (3 by default), the contract pays the subscriber both deposits — automatically." />
         </Panel>
 

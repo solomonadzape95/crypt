@@ -112,6 +112,15 @@ export default function ListingDetailPage(props: { params: Promise<Params> }) {
               <SubscribeDialog
                 listingId={listing.id}
                 signedInWallet={address}
+                baseFeeUsdc={Number(listing.subscription_fee_usdc)}
+                periodOptions={listing.period_options}
+                payoutMode={listing.payout_mode}
+                guaranteeUsdc={Number(listing.guarantee_usdc)}
+                coverageRatioX={
+                  listing.coverage_ratio_x != null
+                    ? Number(listing.coverage_ratio_x)
+                    : null
+                }
                 onSubscribed={(vaultId) => router.push(`/vault/${vaultId}`)}
               />
             ) : (
@@ -124,8 +133,7 @@ export default function ListingDetailPage(props: { params: Promise<Params> }) {
                            transition-colors uppercase tracking-[0.12em] text-sm font-medium
                            disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-between"
               >
-                <span>{listing.active ? "subscribe" : "listing paused"}</span>
-                {listing.active && <span>→</span>}
+                {listing.active ? "subscribe" : "listing paused"}
               </button>
             )}
           </aside>

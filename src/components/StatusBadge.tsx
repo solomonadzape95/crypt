@@ -1,12 +1,14 @@
 "use client";
 
 import { motion } from "framer-motion";
-import type { VaultStatus } from "@/lib/types";
+import type { VaultUiStatus } from "@/lib/vault-state";
 
-const META: Record<VaultStatus, { label: string; color: string; pulse: boolean }> = {
+const META: Record<VaultUiStatus, { label: string; color: string; pulse: boolean }> = {
   funding:      { label: "waiting on deposits", color: "var(--fg-2)",        pulse: true },
   locked:       { label: "active",              color: "var(--signal-ok)",   pulse: true },
   under_threat: { label: "failing",             color: "var(--signal-wait)", pulse: true },
+  // Synthetic state: threshold breached, settle txs are in flight.
+  settling:     { label: "settling…",           color: "var(--amber)",       pulse: true },
   // disbursed = the protocol fired the way it was supposed to. Green, not red.
   disbursed:    { label: "paid out",            color: "var(--signal-ok)",   pulse: false },
   expired:      { label: "closed",              color: "var(--fg-3)",        pulse: false },
@@ -16,7 +18,7 @@ const META: Record<VaultStatus, { label: string; color: string; pulse: boolean }
  * Square LED + tracked-uppercase label inside a hairline frame. No tinted
  * background — the LED is the entire signal. Operator-console look.
  */
-export function StatusBadge({ status }: { status: VaultStatus }) {
+export function StatusBadge({ status }: { status: VaultUiStatus }) {
   const m = META[status];
   return (
     <div className="inline-flex items-center gap-3 border border-[var(--rule-0)] bg-[var(--ink-1)] h-8 px-3">

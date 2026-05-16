@@ -5,6 +5,8 @@ import type { Vault } from "@/lib/types";
 
 export function CountdownTimer({ vault }: { vault: Vault }) {
   if (vault.status !== "under_threat") return null;
+  // Once the threshold is hit, SettlingPanel takes over the same UI slot.
+  if (vault.consecutive_failures >= vault.failure_threshold) return null;
   const remaining = Math.max(0, vault.failure_threshold - vault.consecutive_failures);
   const lastCheck = remaining <= 1;
   const color = lastCheck ? "var(--signal-fail)" : "var(--amber)";

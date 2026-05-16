@@ -100,6 +100,28 @@ export function WalletMenu({ address }: Props) {
           </button>
 
           <Link
+            href="/subscriber"
+            onClick={() => setOpen(false)}
+            role="menuitem"
+            className="block px-4 py-3 border-b border-[var(--rule-0)]
+                       label hover:bg-[var(--ink-2)] hover:text-[var(--fg-0)]
+                       transition-colors"
+          >
+            subscriber dashboard
+          </Link>
+
+          <Link
+            href="/provider"
+            onClick={() => setOpen(false)}
+            role="menuitem"
+            className="block px-4 py-3 border-b border-[var(--rule-0)]
+                       label hover:bg-[var(--ink-2)] hover:text-[var(--fg-0)]
+                       transition-colors"
+          >
+            provider dashboard
+          </Link>
+
+          <Link
             href="/profile"
             onClick={() => setOpen(false)}
             role="menuitem"
@@ -107,7 +129,7 @@ export function WalletMenu({ address }: Props) {
                        label hover:bg-[var(--ink-2)] hover:text-[var(--fg-0)]
                        transition-colors"
           >
-            profile →
+            profile
           </Link>
 
           <button

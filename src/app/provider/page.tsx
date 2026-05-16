@@ -53,7 +53,7 @@ export default function ProviderPage() {
         crumbs={[{ label: "provider" }, { label: "offers" }]}
         address={address}
         rightLinks={[
-          { href: "/vaults", label: "← my coverage" },
+          { href: "/vaults", label: "my coverage" },
           { href: "/marketplace", label: "marketplace" },
         ]}
       />
@@ -95,10 +95,17 @@ export default function ProviderPage() {
             </div>
           </Panel>
         ) : (
-          <Panel
-            label={`offers · ${listings.length}`}
-            trailing="title · your deposit · their deposit · subscribers"
-          >
+          <Panel label={`offers · ${listings.length}`}>
+            <div
+              className="grid grid-cols-[1fr_minmax(8rem,_auto)_minmax(8rem,_auto)_minmax(7rem,_auto)]
+                         items-stretch divide-x divide-[var(--rule-0)]
+                         bg-[var(--ink-2)] border-b border-[var(--rule-0)]"
+            >
+              <div className="px-4 py-2 label">title</div>
+              <div className="px-4 py-2 label text-right">your deposit</div>
+              <div className="px-4 py-2 label text-right">their deposit</div>
+              <div className="px-4 py-2 label text-right">subscribers</div>
+            </div>
             <ul className="flex flex-col">
               {listings.map((l) => (
                 <li key={l.id}>
@@ -119,9 +126,9 @@ function ListingRow({ listing }: { listing: ListingWithCount }) {
       href={`/provider/listings/${listing.id}`}
       className="group block border-t border-[var(--rule-0)] hover:bg-[var(--ink-2)] transition-colors"
     >
-      <div className="grid grid-cols-[1fr_minmax(8rem,_auto)_minmax(8rem,_auto)_minmax(7rem,_auto)_1.5rem]
-                      items-center gap-6 px-4 py-4">
-        <div className="flex flex-col gap-1 min-w-0">
+      <div className="grid grid-cols-[1fr_minmax(8rem,_auto)_minmax(8rem,_auto)_minmax(7rem,_auto)]
+                      items-stretch divide-x divide-[var(--rule-0)]">
+        <div className="flex flex-col gap-1 min-w-0 px-4 py-4 justify-center">
           <span className="label">
             {listing.active ? (
               <span style={{ color: "var(--signal-ok)" }}>● live</span>
@@ -141,12 +148,6 @@ function ListingRow({ listing }: { listing: ListingWithCount }) {
           {Number(listing.subscription_fee_usdc).toFixed(2)}
         </Cell>
         <Cell label="subscribers">{listing.subscriberCount}</Cell>
-        <span
-          className="text-lg text-[var(--fg-3)] group-hover:text-[var(--amber)] transition-colors"
-          aria-hidden
-        >
-          ›
-        </span>
       </div>
     </Link>
   );
@@ -162,7 +163,7 @@ function Cell({
   accent?: boolean;
 }) {
   return (
-    <div className="flex flex-col items-end gap-1">
+    <div className="flex flex-col items-end gap-1 px-4 py-4 justify-center">
       <span className="label">{label}</span>
       <span
         className="numeric text-sm"
