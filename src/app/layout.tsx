@@ -42,7 +42,16 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${eb.variable} ${dm.variable} h-full antialiased`}>
+    <html
+      lang="en"
+      className={`${eb.variable} ${dm.variable} h-full antialiased`}
+    >
+      <head>
+        <meta
+          name="talentapp:project_verification"
+          content="205ffe4147215c48424222082063fbd450d5d12fed38374dcaabbffcd2baa52d6c899dbc4103e09f6ffab9394ef03f574c422ac44cd64bf1d75997c17ca24f72"
+        />
+      </head>
       <body className="min-h-full flex flex-col">
         {children}
         <FloatingNav />
